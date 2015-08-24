@@ -4,6 +4,8 @@ define([
         './Cartesian3',
         './Color',
         './ComponentDatatype',
+        './CornerType',
+        './CorridorGeometry',
         './defaultValue',
         './defined',
         './DeveloperError',
@@ -22,6 +24,8 @@ define([
         Cartesian3,
         Color,
         ComponentDatatype,
+        CornerType,
+        CorridorGeometry,
         defaultValue,
         defined,
         DeveloperError,
@@ -506,6 +510,28 @@ define([
             primitiveType : PrimitiveType.TRIANGLES,
             boundingSphere : BoundingSphere.fromPoints(positions),
             geometryType : GeometryType.POLYLINES
+        });
+    };
+
+    /**
+     * @private
+     */
+    PolylineGeometry.createShadowVolume = function(polylineGeometry, minHeightFunc, maxHeightFunc) {
+        var granularity = polylineGeometry._granularity;
+        var ellipsoid = polylineGeometry._ellipsoid;
+
+        var minHeight = minHeightFunc(granularity, ellipsoid);
+        var maxHeight = maxHeightFunc(granularity, ellipsoid);
+
+        return new CorridorGeometry({
+            positions : polylineGeometry._positions,
+            width : polylineGeometry._width,
+            cornerType : CornerType.MITERED,
+            ellipsoid : ellipsoid,
+            granularity : granularity,
+            extrudedHeight : minHeight,
+            height : maxHeight,
+            vertexFormat : VertexFormat.POSITION_ONLY
         });
     };
 
