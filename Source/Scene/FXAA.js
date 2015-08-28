@@ -10,6 +10,8 @@ define([
         '../Renderer/PixelDatatype',
         '../Renderer/Renderbuffer',
         '../Renderer/RenderbufferFormat',
+        '../Renderer/RenderState',
+        '../Renderer/Texture',
         '../Shaders/PostProcessFilters/FXAA'
     ], function(
         Cartesian2,
@@ -22,6 +24,8 @@ define([
         PixelDatatype,
         Renderbuffer,
         RenderbufferFormat,
+        RenderState,
+        Texture,
         FXAAFS) {
     "use strict";
 
@@ -71,7 +75,8 @@ define([
             this._depthTexture = this._depthTexture && this._depthTexture.destroy();
             this._depthRenderbuffer = this._depthRenderbuffer && this._depthRenderbuffer.destroy();
 
-            this._texture = context.createTexture2D({
+            this._texture = new Texture({
+                context : context,
                 width : width,
                 height : height,
                 pixelFormat : PixelFormat.RGBA,
@@ -79,7 +84,8 @@ define([
             });
 
             if (context.depthTexture) {
-                this._depthTexture = context.createTexture2D({
+                this._depthTexture = new Texture({
+                    context : context,
                     width : width,
                     height : height,
                     pixelFormat : PixelFormat.DEPTH_COMPONENT,
@@ -109,7 +115,7 @@ define([
 
         if (!defined(this._command)) {
             this._command = context.createViewportQuadCommand(FXAAFS, {
-                renderState : context.createRenderState(),
+                renderState : RenderState.fromCache(),
                 owner : this
             });
         }

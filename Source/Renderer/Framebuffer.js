@@ -5,14 +5,16 @@ define([
         '../Core/defineProperties',
         '../Core/destroyObject',
         '../Core/DeveloperError',
-        '../Core/PixelFormat'
+        '../Core/PixelFormat',
+        './ContextLimits'
     ], function(
         defaultValue,
         defined,
         defineProperties,
         destroyObject,
         DeveloperError,
-        PixelFormat) {
+        PixelFormat,
+        ContextLimits) {
     "use strict";
 
     function attachTexture(framebuffer, attachment, texture) {
@@ -49,12 +51,14 @@ define([
      * var height = context.canvas.clientHeight;
      * var framebuffer = new Framebuffer({
      *   context : context,
-     *   colorTextures : [context.createTexture2D({
+     *   colorTextures : [new Texture({
+     *     context : context,
      *     width : width,
      *     height : height,
      *     pixelFormat : PixelFormat.RGBA
      *   })],
-     *   depthTexture : context.createTexture2D({
+     *   depthTexture : new Texture({
+     *     context : context,
      *     width : width,
      *     height : height,
      *     pixelFormat : PixelFormat.DEPTH_COMPONENT,
@@ -73,9 +77,8 @@ define([
         }
         //>>includeEnd('debug');
 
-        var context = options.context;
-        var gl = context._gl;
-        var maximumColorAttachments = context.maximumColorAttachments;
+        var gl = options.context._gl;
+        var maximumColorAttachments = ContextLimits.maximumColorAttachments;
 
         this._gl = gl;
         this._framebuffer = gl.createFramebuffer();

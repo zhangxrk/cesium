@@ -18,12 +18,18 @@ define([
         '../Core/Rectangle',
         '../Core/TerrainProvider',
         '../Core/TileProviderError',
+        '../Renderer/Buffer',
         '../Renderer/BufferUsage',
         '../Renderer/ClearCommand',
+        '../Renderer/ContextLimits',
         '../Renderer/DrawCommand',
         '../Renderer/Framebuffer',
         '../Renderer/MipmapHint',
+        '../Renderer/RenderState',
+        '../Renderer/Sampler',
+        '../Renderer/ShaderProgram',
         '../Renderer/ShaderSource',
+        '../Renderer/Texture',
         '../Renderer/TextureMagnificationFilter',
         '../Renderer/TextureMinificationFilter',
         '../Renderer/TextureWrap',
@@ -53,12 +59,18 @@ define([
         Rectangle,
         TerrainProvider,
         TileProviderError,
+        Buffer,
         BufferUsage,
         ClearCommand,
+        ContextLimits,
         DrawCommand,
         Framebuffer,
         MipmapHint,
+        RenderState,
+        Sampler,
+        ShaderProgram,
         ShaderSource,
+        Texture,
         TextureMagnificationFilter,
         TextureMinificationFilter,
         TextureWrap,
@@ -658,7 +670,8 @@ define([
         }
 
         // Imagery does not need to be discarded, so upload it to WebGL.
-        var texture = context.createTexture2D({
+        var texture = new Texture({
+            context : context,
             source : imagery.image,
             pixelFormat : imageryProvider.hasAlphaChannel ? PixelFormat.RGBA : PixelFormat.RGB
         });
@@ -696,8 +709,8 @@ define([
         if (CesiumMath.isPowerOfTwo(texture.width) && CesiumMath.isPowerOfTwo(texture.height)) {
             var mipmapSampler = context.cache.imageryLayer_mipmapSampler;
             if (!defined(mipmapSampler)) {
-                var maximumSupportedAnisotropy = context.maximumTextureFilterAnisotropy;
-                mipmapSampler = context.cache.imageryLayer_mipmapSampler = context.createSampler({
+                var maximumSupportedAnisotropy = ContextLimits.maximumTextureFilterAnisotropy;
+                mipmapSampler = context.cache.imageryLayer_mipmapSampler = new Sampler({
                     wrapS : TextureWrap.CLAMP_TO_EDGE,
                     wrapT : TextureWrap.CLAMP_TO_EDGE,
                     minificationFilter : TextureMinificationFilter.LINEAR_MIPMAP_LINEAR,
@@ -710,7 +723,7 @@ define([
         } else {
             var nonMipmapSampler = context.cache.imageryLayer_nonMipmapSampler;
             if (!defined(nonMipmapSampler)) {
-                nonMipmapSampler = context.cache.imageryLayer_nonMipmapSampler = context.createSampler({
+                nonMipmapSampler = context.cache.imageryLayer_nonMipmapSampler = new Sampler({
                     wrapS : TextureWrap.CLAMP_TO_EDGE,
                     wrapT : TextureWrap.CLAMP_TO_EDGE,
                     minificationFilter : TextureMinificationFilter.LINEAR,
@@ -833,17 +846,30 @@ define([
             };
 
             var indices = TerrainProvider.getRegularGridIndices(2, 64);
-            var indexBuffer = context.createIndexBuffer(indices, BufferUsage.STATIC_DRAW, IndexDatatype.UNSIGNED_SHORT);
+            var indexBuffer = Buffer.createIndexBuffer({
+                context : context,
+                typedArray : indices,
+                usage : BufferUsage.STATIC_DRAW,
+                indexDatatype : IndexDatatype.UNSIGNED_SHORT
+            });
 
             reproject.vertexArray = new VertexArray({
                 context : context,
                 attributes : [{
                     index : reprojectAttributeIndices.position,
-                    vertexBuffer : context.createVertexBuffer(positions, BufferUsage.STATIC_DRAW),
+                    vertexBuffer : Buffer.createVertexBuffer({
+                        context : context,
+                        typedArray : positions,
+                        usage : BufferUsage.STATIC_DRAW
+                    }),
                     componentsPerAttribute : 2
                 },{
                     index : reprojectAttributeIndices.webMercatorT,
-                    vertexBuffer : context.createVertexBuffer(64 * 2 * 4, BufferUsage.STREAM_DRAW),
+                    vertexBuffer : Buffer.createVertexBuffer({
+                        context : context,
+                        sizeInBytes : 64 * 2 * 4,
+                        usage : BufferUsage.STREAM_DRAW
+                    }),
                     componentsPerAttribute : 1
                 }],
                 indexBuffer : indexBuffer
@@ -853,9 +879,14 @@ define([
                 sources : [ReprojectWebMercatorVS]
             });
 
-            reproject.shaderProgram = context.createShaderProgram(vs, ReprojectWebMercatorFS, reprojectAttributeIndices);
+            reproject.shaderProgram = ShaderProgram.fromCache({
+                context : context,
+                vertexShaderSource : vs,
+                fragmentShaderSource : ReprojectWebMercatorFS,
+                attributeLocations : reprojectAttributeIndices
+            });
 
-            reproject.sampler = context.createSampler({
+            reproject.sampler = new Sampler({
                 wrapS : TextureWrap.CLAMP_TO_EDGE,
                 wrapT : TextureWrap.CLAMP_TO_EDGE,
                 minificationFilter : TextureMinificationFilter.LINEAR,
@@ -879,7 +910,8 @@ define([
         var northMercatorY = 0.5 * Math.log((1 + sinLatitude) / (1 - sinLatitude));
         var oneOverMercatorHeight = 1.0 / (northMercatorY - southMercatorY);
 
-        var outputTexture = context.createTexture2D({
+        var outputTexture = new Texture({
+            context : context,
             width : width,
             height : height,
             pixelFormat : texture.pixelFormat,
@@ -933,7 +965,7 @@ define([
                 (reproject.renderState.viewport.width !== width) ||
                 (reproject.renderState.viewport.height !== height)) {
 
-            reproject.renderState = context.createRenderState({
+            reproject.renderState = RenderState.fromCache({
                 viewport : new BoundingRectangle(0, 0, width, height)
             });
         }
