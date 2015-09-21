@@ -1,30 +1,47 @@
 Change Log
 ==========
 
+### 1.14 - 2015-10-01
+
+* Breaking changes
+  * ...
+* Deprecated
+  * ...
+* Added `subdomains` option to the `WebMapTileServiceImageryProvider` constructor.
+* Added `subdomains` option to the `WebMapServiceImageryProvider` constructor.
+* Fix zooming in 2D when tracking an object. The zoom was based on location rather than the tracked object. [#2991](https://github.com/AnalyticalGraphicsInc/cesium/issues/2991)
+* Added `options.credit` parameter to `MapboxImageryProvider`.
+* Provided a workaround for Safari 9 where WebGL constants can't be accessed through `WebGLRenderingContext`. Now constants are hard-coded in `WebGLConstants`. [#2989](https://github.com/AnalyticalGraphicsInc/cesium/issues/2989)
+* Fixed an issue with drill picking at low frame rates that would cause a crash. [#3010](https://github.com/AnalyticalGraphicsInc/cesium/pull/3010)
+* Fixed a bug that prevented `setView` from working across all scene modes.
+* Fixed a bug that caused `camera.positionWC` to occasionally return the incorrect value.
+* Added a workaround for Chrome 45, where the first character in a label with a small font size would not appear. [#3011](https://github.com/AnalyticalGraphicsInc/cesium/pull/3011)
+* Fixed issues causing the terrain and sky to disappear when the camera is near the surface. [#2415](https://github.com/AnalyticalGraphicsInc/cesium/issues/2415) and [#2271](https://github.com/AnalyticalGraphicsInc/cesium/issues/2271)
+* Changed the `ScreenSpaceCameraController.minimumZoomDistance` default from `20.0` to `1.0`.
+
 ### 1.13 - 2015-09-01
 
 * Breaking changes
-  * Remove deprecated `AxisAlignedBoundingBox.intersect` and `BoundingSphere.intersect`. Use `.intersectPlane` instead.
+  * Remove deprecated `AxisAlignedBoundingBox.intersect` and `BoundingSphere.intersect`. Use `BoundingSphere.intersectPlane` instead.
   * Remove deprecated `getFeatureInfoAsGeoJson` and `getFeatureInfoAsXml` constructor parameters from `WebMapServiceImageryProvider`.
-* Deprecated
-  *
-* Fix issue where extruded `PolygonGeometry` was always extruding to the ellipsoid surface instead of specified height.
-* Fix an issue where non-feature nodes prevented KML documents from loading. [#2945](https://github.com/AnalyticalGraphicsInc/cesium/pull/2945).
-* Removed [es5-shim](https://github.com/kriskowal/es5-shim), which is no longer required by the unit tests. [#2933](https://github.com/AnalyticalGraphicsInc/cesium/pull/2945)
-* Fix issue where `JulianDate` would not parse certain dates properly. [#405](https://github.com/AnalyticalGraphicsInc/cesium/issues/405)
-* Added support for `GroundPrimitive` which works much like `Primitive` but it drapes the geometry over terrain. Valid geometries that can be draped on terrain are `CircleGeometry`, `CorridorGeometry`, `EllipseGeometry`, `PolygonGeometry`, and `RectangleGeometry`.  Because of the cutting edge nature of implementing this feature in WebGL, it requires the [EXT_frag_depth](https://www.khronos.org/registry/webgl/extensions/EXT_frag_depth/) extension, which is currently only supported in Chrome, Firefox, and Edge.  Apple support is expected in iOS 9 and MacOS Safari 9. Android support varies by hardware and IE11 will most likely never support it. You can use [webglreport.com](http://webglreport.com) to verify support for your hardware  Finally, this feature is currently only supported in Primitives and can not be used via the Entity API.
-* Added `Scene.groundPrimitives`, which is a primitive collection like `Scene.primitives`, but for `GroundPrimitive`s. Use for correct z-ordering. For example:
+* Added support for `GroundPrimitive` which works much like `Primitive` but drapes geometry over terrain. Valid geometries that can be draped on terrain are `CircleGeometry`, `CorridorGeometry`, `EllipseGeometry`, `PolygonGeometry`, and `RectangleGeometry`.  Because of the cutting edge nature of this feature in WebGL, it requires the [EXT_frag_depth](https://www.khronos.org/registry/webgl/extensions/EXT_frag_depth/) extension, which is currently only supported in Chrome, Firefox, and Edge.  Apple support is expected in iOS 9 and MacOS Safari 9. Android support varies by hardware and IE11 will most likely never support it. You can use [webglreport.com](http://webglreport.com) to verify support for your hardware. Finally, this feature is currently only supported in Primitives and not yet available via the Entity API. [#2865](https://github.com/AnalyticalGraphicsInc/cesium/pull/2865)
+* Added `Scene.groundPrimitives`, which is a primitive collection like `Scene.primitives`, but for `GroundPrimitive` instances. It allows custom z-ordering. [#2960](https://github.com/AnalyticalGraphicsInc/cesium/pull/2960) For example:
 
-    // draws the ellipse on top of the rectangle
-    var ellipse = scene.groundPrimitives.add(new Cesium.GroundPrimitive({...}));
-    var rectangle = scene.groundPrimitives.add(new Cesium.GroundPrimitive({...}));
+        // draws the ellipse on top of the rectangle
+        var ellipse = scene.groundPrimitives.add(new Cesium.GroundPrimitive({...}));
+        var rectangle = scene.groundPrimitives.add(new Cesium.GroundPrimitive({...}));
     
-    // move the rectangle to draw on top of the ellipse
-    scene.groundPrimitives.raise(rectangle);
+        // move the rectangle to draw on top of the ellipse
+        scene.groundPrimitives.raise(rectangle);
 
+* Added `reverseZ` tag to `UrlTemplateImageryProvider`. [#2961](https://github.com/AnalyticalGraphicsInc/cesium/pull/2961)
 * Added `BoundingSphere.isOccluded` and `OrientedBoundingBox.isOccluded` to determine if the volumes are occluded by an `Occluder`.
 * Added `distanceSquaredTo` and `computePlaneDistances` functions to `OrientedBoundingBox`.
-* Added `reverseZ` tag to `UrlTemplateImageryProvider`.
+* Fixed a GLSL precision issue that enables Cesium to support Mali-400MP GPUs and other mobile GPUs where GLSL shaders did not previously compile. [#2984](https://github.com/AnalyticalGraphicsInc/cesium/pull/2984)
+* Fixed an issue where extruded `PolygonGeometry` was always extruding to the ellipsoid surface instead of specified height. [#2923](https://github.com/AnalyticalGraphicsInc/cesium/pull/2923)
+* Fixed an issue where non-feature nodes prevented KML documents from loading. [#2945](https://github.com/AnalyticalGraphicsInc/cesium/pull/2945)
+* Fixed an issue where `JulianDate` would not parse certain dates properly. [#405](https://github.com/AnalyticalGraphicsInc/cesium/issues/405)
+* Removed [es5-shim](https://github.com/kriskowal/es5-shim), which is no longer being used. [#2933](https://github.com/AnalyticalGraphicsInc/cesium/pull/2945)
 
 ### 1.12 - 2015-08-03
 
