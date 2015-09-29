@@ -5,6 +5,7 @@ define([
         '../Core/ColorGeometryInstanceAttribute',
         '../Core/defined',
         '../Core/ShowGeometryInstanceAttribute',
+        '../Scene/GroundPrimitive',
         '../Scene/Primitive',
         './BoundingSphereState'
     ], function(
@@ -13,6 +14,7 @@ define([
         ColorGeometryInstanceAttribute,
         defined,
         ShowGeometryInstanceAttribute,
+        GroundPrimitive,
         Primitive,
         BoundingSphereState) {
     "use strict";
@@ -99,11 +101,17 @@ define([
                             originalAttributes.color.value = attributes.color;
                         }
                     }
+
+                    //if (defined(originalAttributes.show)) {
+                    //    originalAttributes.show.value = ShowGeometryInstanceAttribute.toValue(true);
+                    //}
+
+                    //originalAttributes.color = ColorGeometryInstanceAttribute.fromColor(new Color(1.0, 1.0, 0.0, 0.5));
                 }
 
-                primitive = new Primitive({
+                primitive = new GroundPrimitive({
                     asynchronous : true,
-                    geometryInstances : geometries,
+                    geometryInstance : geometries,
                     appearance : new this.appearanceType({
                         translucent : this.translucent,
                         closed : this.closed
@@ -117,6 +125,7 @@ define([
             this.primitive = primitive;
             this.createPrimitive = false;
         } else if (defined(primitive) && primitive.ready) {
+            /*
             if (defined(this.oldPrimitive)) {
                 primitives.remove(this.oldPrimitive);
                 this.oldPrimitive = undefined;
@@ -153,6 +162,7 @@ define([
             }
 
             this.updateShows(primitive);
+            */
         } else if (defined(primitive) && !primitive.ready) {
             isUpdated = false;
         }

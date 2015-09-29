@@ -31,103 +31,44 @@ function startup(Cesium) {
 var viewer = new Cesium.Viewer('cesiumContainer');
 var scene = viewer.scene;
 
-// Example 1: Draw a red corridor on the globe surface.
+var VolumeAppearance = function() {
+    this.material = undefined;
+    this.vertexShaderSource = Cesium._shaders.PolylineShadowVolumeVS;
+    //this.vertexShaderSource = Cesium._shaders.PolylineCommon + '\n' + Cesium._shaders.PolylineColorAppearanceVS;
+    this.fragmentShaderSource = Cesium._shaders.PerInstanceFlatColorAppearanceFS;
 
-// Create the corridor geometry.
-var corridorGeometry = new Cesium.CorridorGeometry({
-    positions : Cesium.Cartesian3.fromDegreesArray([
-        -100.0, 40.0,
-        -105.0, 40.0,
-        -105.0, 35.0
-    ]),
-    width : 200000.0,
-    vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT
-});
-// Create a geometry instance using the corridor geometry
-// created above. We can also specify a color attribute,
-// in this case, we're creating a translucent red color.
-var redCorridorInstance = new Cesium.GeometryInstance({
-    geometry: corridorGeometry,
-    attributes : {
-        color : Cesium.ColorGeometryInstanceAttribute.fromColor(new Cesium.Color(1.0, 0.0, 0.0, 0.5))
-    }
-});
-// Add the geometry instance to primitives.
-scene.primitives.add(new Cesium.Primitive({
-    geometryInstances : [redCorridorInstance],
-    appearance : new Cesium.PerInstanceColorAppearance({
-        closed : true
-    })
-}));
+    this.tanslucent = true;
+    this.closed = true;
+    this.flat = true;
+    this.faceForward = false;
+    this.vertexFormat = Cesium.VertexFormat.POSITION_ONLY;
+    this.renderState = Cesium.Appearance.getDefaultRenderState(this.translucent, this.closed);
+};
+VolumeAppearance.prototype.getFragmentShaderSource = Cesium.Appearance.prototype.getFragmentShaderSource;
+VolumeAppearance.prototype.isTranslucent = Cesium.Appearance.prototype.isTranslucent;
+VolumeAppearance.prototype.getRenderState = Cesium.Appearance.prototype.getRenderState;
 
-// Example 2: Draw a green corridor at a height.
-
-// Create the corridor geometry.  Use the height option
-// to set the corridor distance from the ground.
-// In this case, we are also useing the corner type
-// option to draw mitered corners.
-corridorGeometry = new Cesium.CorridorGeometry({
-    positions : Cesium.Cartesian3.fromDegreesArray([
-        -90.0, 40.0,
-        -95.0, 40.0,
-        -95.0, 35.0
-    ]),
-    height: 100000.0,
-    width : 200000.0,
-    vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
-    cornerType: Cesium.CornerType.MITERED
-});
-// Create a geometry instance using the corridor geometry
-// created above. Set the color attribute to a
-// solid green.
-var greenCorridorInstance = new Cesium.GeometryInstance({
-    geometry: corridorGeometry,
-    attributes : {
-        color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.GREEN)
-    }
-});
-// Add the geometry instance to primitives.
-scene.primitives.add(new Cesium.Primitive({
-    geometryInstances : greenCorridorInstance,
-    appearance : new Cesium.PerInstanceColorAppearance({
-        closed : true,
-        translucent : false
-    })
-}));
-
-// Example 3: Draw a blue extruded corridor.
-
-// Create the corridor geometry.  To extrude, specify the
-// height of the geometry with the extrudedHeight option.
-// In this case, we are also using the corner type option
-// to draw beveled corners.
-corridorGeometry = new Cesium.CorridorGeometry({
-    positions : Cesium.Cartesian3.fromDegreesArray([
-        -80.0, 40.0,
-        -85.0, 40.0,
-        -85.0, 35.0
-    ]),
-    height : 200000.0,
-    extrudedHeight : 100000.0,
-    width : 200000.0,
-    vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
-    cornerType: Cesium.CornerType.BEVELED
-});
-// Create a geometry instance using the corridor geometry
-// created above.
 var blueCorridorInstance = new Cesium.GeometryInstance({
-    geometry: corridorGeometry,
+    geometry: new Cesium.PolylineShadowVolumeGeometry({
+        positions : Cesium.Cartesian3.fromDegreesArray([
+            -80.0, 40.0,
+            -85.0, 40.0,
+            -90.0, 40.0
+        ]),
+        width : 2000000.0
+    }),
     attributes : {
         color : Cesium.ColorGeometryInstanceAttribute.fromColor(new Cesium.Color(0.0, 0.0, 1.0, 0.5))
     }
 });
-// Add the geometry instance to primitives.
-scene.primitives.add(new Cesium.Primitive({
-    geometryInstances : [blueCorridorInstance],
-    appearance : new Cesium.PerInstanceColorAppearance({
-        closed : true
-    })
-}));//Sandcastle_End
+scene.groundPrimitives.add(new Cesium.Primitive({
+    geometryInstances : blueCorridorInstance,
+    appearance : new VolumeAppearance(),
+    asynchronous : false
+}));
+
+window.Cesium = Cesium;
+//Sandcastle_End
     Sandcastle.finishedLoading();
 }
 if (typeof Cesium !== "undefined") {

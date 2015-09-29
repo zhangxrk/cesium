@@ -525,7 +525,7 @@ define([
 
         return new CorridorGeometry({
             positions : polylineGeometry._positions,
-            width : polylineGeometry._width,
+            width : Math.max(polylineGeometry._width, 3.0),
             cornerType : CornerType.MITERED,
             ellipsoid : ellipsoid,
             granularity : granularity,

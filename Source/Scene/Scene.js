@@ -507,7 +507,7 @@ define([
          * @default false
          * @private
          */
-        this.copyGlobeDepth = false;
+        this.copyGlobeDepth = true;//false;
 
         this._performanceDisplay = undefined;
         this._debugVolume = undefined;

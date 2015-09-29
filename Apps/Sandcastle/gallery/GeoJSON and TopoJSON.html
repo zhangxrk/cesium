@@ -28,12 +28,42 @@ function startup(Cesium) {
     "use strict";
 //Sandcastle_Begin
 var viewer = new Cesium.Viewer('cesiumContainer');
+var cesiumTerrainProviderMeshes = new Cesium.CesiumTerrainProvider({
+    url : '//assets.agi.com/stk-terrain/world'
+});
+viewer.terrainProvider = cesiumTerrainProviderMeshes;
+
+viewer.extend(Cesium.viewerCesiumInspectorMixin);
 
 //Example 1: Load with default styling.
 Sandcastle.addDefaultToolbarButton('Default styling', function() {
-    viewer.dataSources.add(Cesium.GeoJsonDataSource.load('../../SampleData/ne_10m_us_states.topojson'));
+    //viewer.dataSources.add(Cesium.GeoJsonDataSource.load('../../SampleData/ne_10m_us_states.topojson'));
+    //viewer.dataSources.add(Cesium.GeoJsonDataSource.load('../../SampleData/metro.json'));
+    viewer.dataSources.add(Cesium.GeoJsonDataSource.load('../../SampleData/seattle_streets.json'));
+    
+    var scene = viewer.scene;
+    scene.camera.setView({
+        position : new Cesium.Cartesian3(-2298147.2587075476, -3637996.723031785, 4693020.177243426),
+        heading : 4.81026118641286,
+        pitch : -0.6648267237677676,
+        roll : 6.278954571819071
+    });
+    
+    var ellipsoid = scene.globe.ellipsoid;
+
+    // Mouse over the globe to see the cartographic position
+    var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+    handler.setInputAction(function(movement) {
+        if (scene.pickPositionSupported) {
+            var cartesian = scene.pickPosition(movement.position);
+            if (Cesium.defined(cartesian)) {
+                console.log(Cesium.Cartesian3.distance(scene.camera.position, cartesian));
+            }
+        }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 });
 
+/*
 //Example 2: Load with basic styling options.
 Sandcastle.addToolbarButton('Basic styling', function() {
     viewer.dataSources.add(Cesium.GeoJsonDataSource.load('../../SampleData/ne_10m_us_states.topojson', {
@@ -85,6 +115,7 @@ Sandcastle.addToolbarButton('Custom styling', function() {
         window.alert(error);
     });
 });
+*/
 
 //Reset the scene when switching demos.
 Sandcastle.reset = function() {

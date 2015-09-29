@@ -154,6 +154,8 @@ define([
         this._rsColorPass = undefined;
         this._rsPickPass = undefined;
 
+        this._uniformMap = {};
+
         this._boundingVolumes = [];
         this._boundingVolumes2D = [];
 
@@ -317,8 +319,8 @@ define([
         return scene.context.fragmentDepth;
     };
 
-    GroundPrimitive._maxHeight = 9000.0;
-    GroundPrimitive._minHeight = -100000.0;
+    GroundPrimitive._maxHeight = 10.0;//9000.0;
+    GroundPrimitive._minHeight = -10.0;//-100000.0;
     GroundPrimitive._minOBBHeight = -11500.0;
 
     function computeMaximumHeight(granularity, ellipsoid) {
@@ -509,7 +511,8 @@ define([
             return;
         }
 
-        var vs = Primitive._createColumbusViewShader(ShadowVolumeVS, frameState.scene3DOnly);
+        var vs = ShadowVolumeVS;
+        vs = Primitive._createColumbusViewShader(vs, frameState.scene3DOnly);
         vs = Primitive._appendShowToShader(primitive._primitive, vs);
 
         var fs = ShadowVolumeFS;
@@ -570,7 +573,7 @@ define([
             command.vertexArray = vertexArray;
             command.renderState = groundPrimitive._rsStencilPreloadPass;
             command.shaderProgram = groundPrimitive._sp;
-            command.uniformMap = {};
+            command.uniformMap = groundPrimitive._uniformMap;
             command.pass = Pass.GROUND;
 
             // stencil depth command
@@ -585,7 +588,7 @@ define([
             command.vertexArray = vertexArray;
             command.renderState = groundPrimitive._rsStencilDepthPass;
             command.shaderProgram = groundPrimitive._sp;
-            command.uniformMap = {};
+            command.uniformMap = groundPrimitive._uniformMap;
             command.pass = Pass.GROUND;
 
             // color command
@@ -600,7 +603,7 @@ define([
             command.vertexArray = vertexArray;
             command.renderState = groundPrimitive._rsColorPass;
             command.shaderProgram = groundPrimitive._sp;
-            command.uniformMap = {};
+            command.uniformMap = groundPrimitive._uniformMap;
             command.pass = Pass.GROUND;
 
             // pick stencil preload and depth are the same as the color pass
@@ -618,7 +621,7 @@ define([
             command.vertexArray = vertexArray;
             command.renderState = groundPrimitive._rsPickPass;
             command.shaderProgram = groundPrimitive._spPick;
-            command.uniformMap = {};
+            command.uniformMap = groundPrimitive._uniformMap;
             command.pass = Pass.GROUND;
         }
     }
@@ -673,6 +676,7 @@ define([
         }
 
         if (!defined(this._primitive)) {
+            /*
             var instance = this.geometryInstance;
             var geometry = instance.geometry;
 
@@ -686,9 +690,31 @@ define([
                     pickPrimitive : this
                 });
             }
+            */
+
+            var instances = isArray(this.geometryInstance) ? this.geometryInstance : [this.geometryInstance];
+            var length = instances.length;
+            var groundInstances = new Array(length);
+
+            for (var i = 0 ; i < length; ++i) {
+                var instance = instances[i];
+                var geometry = instance.geometry;
+
+                var instanceType = geometry.constructor;
+                if (defined(instanceType) && defined(instanceType.createShadowVolume)) {
+                    groundInstances[i] = new GeometryInstance({
+                        geometry : instanceType.createShadowVolume(geometry, computeMinimumHeight, computeMaximumHeight),
+                        attributes : instance.attributes,
+                        modelMatrix : Matrix4.IDENTITY,
+                        id : instance.id,
+                        pickPrimitive : this
+                    });
+                }
+            }
 
             var primitiveOptions = this._primitiveOptions;
-            primitiveOptions.geometryInstances = instance;
+            //primitiveOptions.geometryInstances = instance;
+            primitiveOptions.geometryInstances = groundInstances;
 
             var that = this;
             this._primitiveOptions._createBoundingVolumeFunction = function(frameState, geometry) {
