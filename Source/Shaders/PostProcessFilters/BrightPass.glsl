@@ -1,6 +1,10 @@
 uniform sampler2D colorTexture;
 
+#ifdef USE_LUMINANCE_TEXTURE
+uniform sampler2D luminanceTexture;
+#else
 uniform float avgLuminance;
+#endif
 uniform float threshold;
 uniform float offset;
 
@@ -21,6 +25,9 @@ void main()
     vec3 xyz = czm_RGBToXYZ(color.rgb);
     float luminance = xyz.r;
 
+#ifdef USE_LUMINANCE_TEXTURE
+    float avgLuminance = czm_luminance(texture2D(luminanceTexture, vec2(0.5)).rgb);
+#endif
     float scaledLum = key(avgLuminance) * luminance / avgLuminance;
     float brightLum = max(scaledLum - threshold, 0.0);
     float brightness = brightLum / (offset + brightLum);

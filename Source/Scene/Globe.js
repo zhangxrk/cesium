@@ -163,6 +163,8 @@ define([
          */
         this.lightingFadeInDistance = 9000000.0;
 
+        this.minimumBrightness = 0.3;
+
         /**
          * True if an animated wave effect should be shown in areas of the globe
          * covered by water; otherwise, false.  This property is ignored if the
@@ -507,6 +509,7 @@ define([
             tileProvider.terrainProvider = this.terrainProvider;
             tileProvider.lightingFadeOutDistance = this.lightingFadeOutDistance;
             tileProvider.lightingFadeInDistance = this.lightingFadeInDistance;
+            tileProvider.minimumBrightness = this.minimumBrightness;
             tileProvider.zoomedOutOceanSpecularIntensity = this._zoomedOutOceanSpecularIntensity;
             tileProvider.hasWaterMask = hasWaterMask;
             tileProvider.oceanNormalMap = this._oceanNormalMap;

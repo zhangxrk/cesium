@@ -50,6 +50,7 @@ uniform sampler2D u_oceanNormalMap;
 
 #ifdef ENABLE_DAYNIGHT_SHADING
 uniform vec2 u_lightingFadeDistance;
+uniform float u_minimumDarkSideBrightness;
 #endif
 
 #if defined(FOG) && (defined(ENABLE_VERTEX_LIGHTING) || defined(ENABLE_DAYNIGHT_SHADING))
@@ -188,7 +189,7 @@ void main()
     float diffuseIntensity = clamp(czm_getLambertDiffuse(czm_sunDirectionEC, normalize(v_normalEC)) * 0.9 + 0.3, 0.0, 1.0);
     vec4 finalColor = vec4(color.rgb * diffuseIntensity, color.a);
 #elif defined(ENABLE_DAYNIGHT_SHADING)
-    float diffuseIntensity = clamp(czm_getLambertDiffuse(czm_sunDirectionEC, normalEC) * 5.0 + 0.3, 0.0, 1.0);
+    float diffuseIntensity = clamp(czm_getLambertDiffuse(czm_sunDirectionEC, normalEC) * 5.0 + u_minimumDarkSideBrightness, 0.0, 1.0);
     float cameraDist = length(czm_view[3]);
     float fadeOutDist = u_lightingFadeDistance.x;
     float fadeInDist = u_lightingFadeDistance.y;

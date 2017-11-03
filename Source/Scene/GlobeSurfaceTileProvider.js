@@ -117,6 +117,7 @@ define([
 
         this.lightingFadeOutDistance = 6500000.0;
         this.lightingFadeInDistance = 9000000.0;
+        this.minimumBrightness = 0.3;
         this.hasWaterMask = false;
         this.oceanNormalMap = undefined;
         this.zoomedOutOceanSpecularIntensity = 0.5;
@@ -775,6 +776,9 @@ define([
             u_lightingFadeDistance : function() {
                 return this.properties.lightingFadeDistance;
             },
+            u_minimumDarkSideBrightness : function() {
+                return this.properties.minimumBrightness;
+            },
             u_center3D : function() {
                 return this.properties.center3D;
             },
@@ -860,6 +864,7 @@ define([
                 zoomedOutOceanSpecularIntensity : 0.5,
                 oceanNormalMap : undefined,
                 lightingFadeDistance : new Cartesian2(6500000.0, 9000000.0),
+                minimumBrightness : 0.3,
 
                 center3D : undefined,
                 rtc : new Cartesian3(),
@@ -1161,6 +1166,7 @@ define([
             uniformMapProperties.oceanNormalMap = oceanNormalMap;
             uniformMapProperties.lightingFadeDistance.x = tileProvider.lightingFadeOutDistance;
             uniformMapProperties.lightingFadeDistance.y = tileProvider.lightingFadeInDistance;
+            uniformMapProperties.minimumBrightness = tileProvider.minimumBrightness;
             uniformMapProperties.zoomedOutOceanSpecularIntensity = tileProvider.zoomedOutOceanSpecularIntensity;
 
             uniformMapProperties.center3D = surfaceTile.center;

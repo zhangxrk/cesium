@@ -343,13 +343,10 @@ define([
         var width = context.drawingBufferWidth * scale;
         var height = context.drawingBufferHeight * scale;
 
-        var size = Math.min(width, height);
-        if (this._forcePowerOfTwo) {
-            if (!CesiumMath.isPowerOfTwo(size)) {
-                size = CesiumMath.nextPowerOfTwo(size);
-            }
-            width = size;
-            height = size;
+        if (this._forcePowerOfTwo && (width !== height || !CesiumMath.isPowerOfTwo(width))) {
+            var downSampleWidth = Math.pow(2.0, Math.floor(Math.log(width) / Math.log(2)));
+            var downSampleHeight = Math.pow(2.0, Math.floor(Math.log(height) / Math.log(2)));
+            width = height = Math.max(1.0, downSampleWidth, downSampleHeight);
         }
 
         createUniformMap(this);
