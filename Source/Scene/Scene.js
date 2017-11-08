@@ -305,6 +305,7 @@ define([
         this._depthPlane = new DepthPlane();
         this._oit = oit;
         this._sceneFramebuffer = new SceneFramebuffer();
+        this._silhouetteFramebuffer = new SceneFramebuffer();
 
         this._clearColorCommand = new ClearCommand({
             color : new Color(),
@@ -710,7 +711,8 @@ define([
             useOIT : false,
             useFXAA : false,
             useInvertClassification : false,
-            usePostProcess : false
+            usePostProcess : false,
+            useSilhouette : false
         };
 
         this._useWebVR = false;
@@ -1339,6 +1341,7 @@ define([
         passes.render = false;
         passes.pick = false;
         passes.depth = false;
+        passes.silhouette = false;
     }
 
     function updateFrameState(scene, frameNumber, time) {
@@ -2135,6 +2138,20 @@ define([
                 }
             }
 
+            if (environmentState.useSilhouette) {
+                var originalFramebuffer = passState.framebuffer;
+                passState.framebuffer = scene._silhouetteFramebuffer.getFramebuffer();
+
+                us.updatePass(Pass.SILHOUETTE);
+                commands = frustumCommands.commands[Pass.SILHOUETTE];
+                length = frustumCommands.indices[Pass.SILHOUETTE];
+                for (j = 0; j < length; ++j) {
+                    executeCommand(commands[j], scene, context, passState);
+                }
+
+                passState.framebuffer = originalFramebuffer;
+            }
+
             if (index !== 0 && scene.mode !== SceneMode.SCENE2D) {
                 // Do not overlap frustums in the translucent pass to avoid blending artifacts
                 frustum.near = frustumCommands.near;
@@ -2683,6 +2700,12 @@ define([
             usePostProcess = environmentState.usePostProcess = postProcess.ready;
         }
 
+        var useSilhouette = environmentState.useSilhouette = !picking && usePostProcess && scene._frameState.passes.silhouette;
+        if (useSilhouette) {
+            scene._silhouetteFramebuffer.update(context, passState);
+            scene._silhouetteFramebuffer.clear(context, passState, clearColor);
+        }
+
         if (environmentState.isSunVisible && scene.sunBloom && !useWebVR) {
             passState.framebuffer = scene._sunPostProcess.update(passState);
             scene._sunPostProcess.clear(context, passState, clearColor);
@@ -2736,10 +2759,12 @@ define([
 
         var useOIT = environmentState.useOIT;
         var usePostProcess = environmentState.usePostProcess;
+        var useSilhouette = environmentState.useSilhouette;
 
         var defaultFramebuffer = environmentState.originalFramebuffer;
         var globeFramebuffer = useGlobeDepthFramebuffer ? scene._globeDepth.framebuffer : undefined;
         var sceneFramebuffer = scene._sceneFramebuffer.getFramebuffer();
+        var silhouetteFramebuffer = scene._silhouetteFramebuffer.getFramebuffer();
 
         if (useOIT) {
             passState.framebuffer = usePostProcess ? sceneFramebuffer : defaultFramebuffer;
@@ -2752,7 +2777,9 @@ define([
             var postProcess = scene.postProcessCollection;
             var colorTexture = inputFramebuffer.getColorTexture(0);
             var depthTexture = defaultValue(globeFramebuffer, sceneFramebuffer).depthStencilTexture;
-            postProcess.execute(context, colorTexture, depthTexture);
+            var silhouetteTexture = useSilhouette? silhouetteFramebuffer.getColorTexture(0) : undefined;
+            var silhouetteDepthTexture = useSilhouette ? silhouetteFramebuffer.depthStencilTexture : undefined;
+            postProcess.execute(context, colorTexture, depthTexture, silhouetteTexture, silhouetteDepthTexture);
             postProcess.copy(context, defaultFramebuffer);
         }
 
@@ -2823,6 +2850,7 @@ define([
         var frameNumber = CesiumMath.incrementWrap(frameState.frameNumber, 15000000.0, 1.0);
         updateFrameState(scene, frameNumber, time);
         frameState.passes.render = true;
+        frameState.passes.silhouette = true;
 
         var backgroundColor = defaultValue(scene.backgroundColor, Color.BLACK);
         frameState.backgroundColor = backgroundColor;

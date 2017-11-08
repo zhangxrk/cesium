@@ -630,6 +630,8 @@ define([
          */
         this.opaquePass = defaultValue(options.opaquePass, Pass.OPAQUE);
 
+        this.silhouette = defaultValue(options.silhouette, false);
+
         this._computedModelMatrix = new Matrix4(); // Derived from modelMatrix and scale
         this._initialRadius = undefined;           // Radius without model's scale property, model-matrix scale, animations, or skins
         this._boundingSphere = undefined;
@@ -4438,6 +4440,12 @@ define([
         return (distance2 >= nearSquared) && (distance2 <= farSquared);
     }
 
+    function deriveSilhouetteCommand(command) {
+        var silhouetteCommand = DrawCommand.shallowClone(command);
+        silhouetteCommand.pass = Pass.SILHOUETTE;
+        return silhouetteCommand;
+    }
+
     /**
      * Called when {@link Viewer} or {@link CesiumWidget} render the scene to
      * get the draw commands needed to render this primitive.
@@ -4739,6 +4747,19 @@ define([
                             (boundingVolume.center.y + boundingVolume.radius > idl2D || boundingVolume.center.y - boundingVolume.radius < idl2D)) {
                             commandList.push(nc.pickCommand2D);
                         }
+                    }
+                }
+            }
+
+            if (passes.silhouette && this.silhouette) {
+                for (i = 0; i < length; ++i) {
+                    nc = nodeCommands[i];
+                    if (nc.show) {
+                        var silhouetteCommand = nc.silhouetteCommand;
+                        if (!defined(silhouetteCommand)) {
+                            silhouetteCommand = nc.silhouetteCommand = deriveSilhouetteCommand(nc.pickCommand);
+                        }
+                        commandList.push(silhouetteCommand);
                     }
                 }
             }

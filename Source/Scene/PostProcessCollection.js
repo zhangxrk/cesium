@@ -151,7 +151,7 @@ define([
         }
     };
 
-    PostProcessCollection.prototype.execute = function(context, colorTexture, depthTexture) {
+    PostProcessCollection.prototype.execute = function(context, colorTexture, depthTexture, silhouetteTexture, silhouetteDepthTexture) {
         var activeProcesses = this._activeProcesses;
         var processes = this._processes;
         var length = activeProcesses.length = processes.length;
@@ -185,9 +185,9 @@ define([
         var lastTexture = initialTexture;
 
         if (count > 0) {
-            activeProcesses[0].execute(context, initialTexture, depthTexture);
+            activeProcesses[0].execute(context, initialTexture, depthTexture, silhouetteTexture, silhouetteDepthTexture);
             for (i = 1; i < count; ++i) {
-                activeProcesses[i].execute(context, activeProcesses[i - 1].outputTexture, depthTexture);
+                activeProcesses[i].execute(context, activeProcesses[i - 1].outputTexture, depthTexture, silhouetteTexture, silhouetteDepthTexture);
             }
             lastTexture = activeProcesses[count - 1].outputTexture;
         }

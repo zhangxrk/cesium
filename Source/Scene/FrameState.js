@@ -151,7 +151,9 @@ define([
              * @type {Boolean}
              * @default false
              */
-            depth : false
+            depth : false,
+
+            silhouette : false
         };
 
         /**

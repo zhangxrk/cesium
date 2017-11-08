@@ -22,50 +22,56 @@
 </style>
 <div id="cesiumContainer" class="fullSize"></div>
 <div id="loadingOverlay"><h1>Loading...</h1></div>
-<div id="toolbar">
-    <table><tbody>
-        <tr>
-            <td>Edge Detection</td>
-            <td><input type="checkbox" data-bind="checked: show"></td>
-        </tr>
-    </tbody></table>
-</div>
+<div id="toolbar"></div>
 <script id="cesium_sandcastle_script">
 function startup(Cesium) {
     'use strict';
 //Sandcastle_Begin
 var viewer = new Cesium.Viewer('cesiumContainer');
+var scene = viewer.scene;
 
-var position = Cesium.Cartesian3.fromDegrees(-123.0744619, 44.0503706);
+var silhouette = scene.postProcessCollection.add(Cesium.PostProcessLibrary.silhouette);
+silhouette.enabled = true;
+silhouette.edgeDetectionUniformValues.color = Cesium.Color.YELLOW;
+
 var url = '../../SampleData/models/CesiumMan/Cesium_Man.glb';
-viewer.trackedEntity = viewer.entities.add({
-    name : url,
-    position : position,
-    model : {
-        uri : url
-    }
+var hpr = new Cesium.HeadingPitchRoll();
+var origin = Cesium.Cartesian3.fromDegrees(-123.0744619, 44.0503706);
+var modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(origin, hpr);
+
+var model = scene.primitives.add(Cesium.Model.fromGltf({
+    url : url,
+    modelMatrix : modelMatrix,
+    minimumPixelSize : 128
+}));
+
+model.readyPromise.then(function(model) {
+    model.activeAnimations.addAll({
+        loop : Cesium.ModelAnimationLoop.REPEAT
+    });
+
+    var camera = viewer.camera;
+    var controller = scene.screenSpaceCameraController;
+    var r = 2.0 * Math.max(model.boundingSphere.radius, camera.frustum.near);
+    controller.minimumZoomDistance = r * 0.5;
+
+    var center = Cesium.Matrix4.multiplyByPoint(model.modelMatrix, model.boundingSphere.center, new Cesium.Cartesian3());
+    var heading = Cesium.Math.toRadians(230.0);
+    var pitch = Cesium.Math.toRadians(-20.0);
+    camera.lookAt(center, new Cesium.HeadingPitchRange(heading, pitch, r * 2.0));
+}).otherwise(function(error){
+    window.alert(error);
 });
 
-var viewModel = {
-    show : true
-};
-
-Cesium.knockout.track(viewModel);
-var toolbar = document.getElementById('toolbar');
-Cesium.knockout.applyBindings(viewModel, toolbar);
-for (var name in viewModel) {
-    if (viewModel.hasOwnProperty(name)) {
-        Cesium.knockout.getObservable(viewModel, name).subscribe(updatePostProcess);
+var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+handler.setInputAction(function(movement) {
+    var pick = scene.pick(movement.endPosition);
+    if (Cesium.defined(pick) && Cesium.defined(pick.primitive) && pick.primitive === model) {
+        model.silhouette = true;
+    } else {
+        model.silhouette = false;
     }
-}
-
-var silhouette = viewer.scene.postProcessCollection.add(Cesium.PostProcessLibrary.silhouette);
-
-function updatePostProcess() {
-    silhouette.enabled = Boolean(viewModel.show);
-    silhouette.edgeDetectionUniformValues.color = Cesium.Color.YELLOW;
-}
-updatePostProcess();
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 //Sandcastle_End
 Sandcastle.finishedLoading();
 }

@@ -1,5 +1,6 @@
 define([
         '../Core/Color',
+        '../Core/defaultValue',
         '../Core/defineProperties',
         '../Core/destroyObject',
         '../Shaders/PostProcessFilters/EdgeDetection',
@@ -9,6 +10,7 @@ define([
         './PostProcessComposite'
     ], function(
         Color,
+        defaultValue,
         defineProperties,
         destroyObject,
         EdgeDetection,
@@ -92,8 +94,9 @@ define([
         this._silhouetteProcess.clear(context);
     };
 
-    PostProcessSilhouette.prototype.execute = function(context, colorTexture, depthTexture) {
-        this._silhouetteGenerateProcess.execute(context, colorTexture, depthTexture);
+    PostProcessSilhouette.prototype.execute = function(context, colorTexture, depthTexture, silhouetteTexture, silhouetteDepthTexture) {
+        var depth = defaultValue(silhouetteDepthTexture, depthTexture);
+        this._silhouetteGenerateProcess.execute(context, colorTexture, depth);
         this._silhouetteProcess.execute(context, colorTexture, depthTexture);
     };
 
