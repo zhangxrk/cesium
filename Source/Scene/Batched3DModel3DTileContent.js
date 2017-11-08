@@ -74,6 +74,8 @@ define([
          */
         this.featurePropertiesDirty = false;
 
+        this.silhouette = false;
+
         initialize(this, arrayBuffer, byteOffset);
     }
 
@@ -432,6 +434,25 @@ define([
      */
     Batched3DModel3DTileContent.prototype.applyStyle = function(frameState, style) {
         this._batchTable.applyStyle(frameState, style);
+
+        var features = this._features;
+        var featuresLength = features.length;
+        var i;
+
+        if (!defined(style)) {
+            for (i = 0; i < featuresLength; ++i) {
+                features[i].silhouette = false;
+            }
+        } else {
+            for (i = 0; i < featuresLength; ++i) {
+                var feature = features[i];
+                if (defined(style.silhouette)) {
+                    feature.silhouette = style.silhouette.evaluate(frameState, feature);
+                } else {
+                    feature.silhouette = false;
+                }
+            }
+        }
     };
 
     /**
@@ -447,6 +468,7 @@ define([
         this._model.modelMatrix = this._tile.computedTransform;
         this._model.shadows = this._tileset.shadows;
         this._model.debugWireframe = this._tileset.debugWireframe;
+        this._model.silhouette = this.silhouette;
         this._model.update(frameState);
 
         // If any commands were pushed, add derived commands

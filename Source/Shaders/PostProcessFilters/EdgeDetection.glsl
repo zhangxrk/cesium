@@ -27,11 +27,11 @@ void main(void)
         float dir = directions[i];
         float scale = scalars[i];
 
-        horizEdge -= texture2D(depthTexture, v_textureCoordinates + vec2(-padx, dir * pady)).x * scale;
-        horizEdge += texture2D(depthTexture, v_textureCoordinates + vec2(padx, dir * pady)).x * scale;
+        horizEdge -= czm_unpackDepth(texture2D(depthTexture, v_textureCoordinates + vec2(-padx, stepSize * dir * pady))) * scale;
+        horizEdge += czm_unpackDepth(texture2D(depthTexture, v_textureCoordinates + vec2(padx, stepSize * dir * pady))) * scale;
 
-        vertEdge -= texture2D(depthTexture, v_textureCoordinates + vec2(dir * padx, -pady)).x * scale;
-        vertEdge += texture2D(depthTexture, v_textureCoordinates + vec2(dir * padx, pady)).x * scale;
+        vertEdge -= czm_unpackDepth(texture2D(depthTexture, v_textureCoordinates + vec2(stepSize * dir * padx, -pady))) * scale;
+        vertEdge += czm_unpackDepth(texture2D(depthTexture, v_textureCoordinates + vec2(stepSize * dir * padx, pady))) * scale;
     }
 
     float len = sqrt(horizEdge * horizEdge + vertEdge * vertEdge);

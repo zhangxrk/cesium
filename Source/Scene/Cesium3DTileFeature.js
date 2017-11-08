@@ -92,6 +92,15 @@ define([
             }
         },
 
+        silhouette : {
+            get : function() {
+                return this._content.silhouette;
+            },
+            set : function(value) {
+                this._content.silhouette = value;
+            }
+        },
+
         /**
          * Gets the content of the tile containing the feature.
          *

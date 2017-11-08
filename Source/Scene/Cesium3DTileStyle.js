@@ -63,6 +63,7 @@ define([
         this._color = undefined;
         this._show = undefined;
         this._pointSize = undefined;
+        this._silhouette = undefined;
         this._meta = undefined;
 
         this._colorShaderFunction = undefined;
@@ -94,6 +95,7 @@ define([
         that.color = styleJson.color;
         that.show = styleJson.show;
         that.pointSize = styleJson.pointSize;
+        that.silhouette = styleJson.silhouette;
 
         var meta = {};
         if (defined(styleJson.meta)) {
@@ -310,6 +312,32 @@ define([
                     this._color = value;
                 }
                 this._colorShaderFunctionReady = false;
+            }
+        },
+
+        silhouette : {
+            get : function() {
+                //>>includeStart('debug', pragmas.debug);
+                if (!this._ready) {
+                    throw new DeveloperError('The style is not loaded.  Use Cesium3DTileStyle.readyPromise or wait for Cesium3DTileStyle.ready to be true.');
+                }
+                //>>includeEnd('debug');
+
+                return this._silhouette;
+            },
+            set : function(value) {
+                var defines = defaultValue(this._style, defaultValue.EMPTY_OBJECT).defines;
+                if (!defined(value)) {
+                    this._silhouette = undefined;
+                } else if (typeof value === 'boolean') {
+                    this._silhouette = new Expression(String(value));
+                } else if (typeof value === 'string') {
+                    this._silhouette = new Expression(value, defines);
+                } else if (defined(value.conditions)) {
+                    this._silhouette = new ConditionsExpression(value, defines);
+                } else {
+                    this._silhouette = value;
+                }
             }
         },
 

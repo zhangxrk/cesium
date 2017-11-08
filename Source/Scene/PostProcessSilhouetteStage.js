@@ -37,7 +37,8 @@ define([
             fragmentShader : EdgeDetection,
             uniformValues : {
                 length : 0.5,
-                color : Color.clone(Color.BLACK)
+                color : Color.clone(Color.BLACK),
+                stepSize : 1.0
             }
         });
 
