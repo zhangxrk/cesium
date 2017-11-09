@@ -29,6 +29,11 @@ function startup(Cesium) {
 // Power Plant design model provided by Bentley Systems
 var viewer = new Cesium.Viewer('cesiumContainer');
 
+var silhouette = viewer.scene.postProcessCollection.add(Cesium.PostProcessLibrary.silhouette);
+silhouette.enabled = true;
+silhouette.edgeDetectionUniformValues.color = Cesium.Color.YELLOW;
+silhouette.edgeDetectionUniformValues.length = 0.1;
+
 var tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
     url : 'https://beta.cesium.com/api/assets/1459?access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzNjUyM2I5Yy01YmRhLTQ0MjktOGI0Zi02MDdmYzBjMmY0MjYiLCJpZCI6NDQsImFzc2V0cyI6WzE0NTldLCJpYXQiOjE0OTkyNjQ3ODF9.SW_rwY-ic0TwQBeiweXNqFyywoxnnUBtcVjeCmDGef4'
 }));
@@ -40,6 +45,30 @@ tileset.readyPromise.then(function() {
 }).otherwise(function(error) {
     throw(error);
 });
+
+// Information about the currently highlighted feature
+var highlighted = {
+    feature: undefined,
+    originalColor: new Cesium.Color()
+};
+
+// Color a feature yellow on hover.
+viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
+    // If a feature was previously highlighted, undo the highlight
+    if (Cesium.defined(highlighted.feature)) {
+        highlighted.feature.silhouette = false;
+        highlighted.feature = undefined;
+    }
+
+    // Pick a new feature
+    var pickedFeature = viewer.scene.pick(movement.endPosition);
+    if (!Cesium.defined(pickedFeature)) {
+        return;
+    }
+
+    highlighted.feature = pickedFeature;
+    pickedFeature.silhouette = true;
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 //Sandcastle_End
 Sandcastle.finishedLoading();
 }
