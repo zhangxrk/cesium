@@ -70,6 +70,7 @@ define([
 
     var DEFAULT_COLOR_VALUE = Color.WHITE;
     var DEFAULT_SHOW_VALUE = true;
+    var DEFAULT_SILHOUETTE_VALUE = false;
 
     /**
      * @private
@@ -409,6 +410,30 @@ define([
         return (this._showAlphaProperties[offset] === 255);
     };
 
+    Cesium3DTileBatchTable.prototype.setSilhouette = function(batchId, silhouette) {
+        //>>includeStart('debug', pragmas.debug);
+        checkBatchId(batchId, this.featuresLength);
+        Check.typeOf.bool('silhouette', silhouette);
+        //>>includeEnd('debug');
+
+        var batchValues = this._pickValues;
+        var offset = (batchId * 4) + 3;
+        batchValues[offset] = silhouette ? 255 : 0;
+
+        this._pickValuesDirty = true;
+    };
+
+    Cesium3DTileBatchTable.prototype.setAllSilhouette = function(silhouette) {
+        //>>includeStart('debug', pragmas.debug);
+        Check.typeOf.bool('show', silhouette);
+        //>>includeEnd('debug');
+
+        var featuresLength = this.featuresLength;
+        for (var i = 0; i < featuresLength; ++i) {
+            this.setSilhouette(i, silhouette);
+        }
+    };
+
     var scratchColorBytes = new Array(4);
 
     Cesium3DTileBatchTable.prototype.setColor = function(batchId, color) {
@@ -500,6 +525,7 @@ define([
         if (!defined(style)) {
             this.setAllColor(DEFAULT_COLOR_VALUE);
             this.setAllShow(true);
+            this.setAllSilhouette(false);
             return;
         }
 
@@ -509,8 +535,10 @@ define([
             var feature = content.getFeature(i);
             var color = defined(style.color) ? style.color.evaluateColor(frameState, feature, scratchColor) : DEFAULT_COLOR_VALUE;
             var show = defined(style.show) ? style.show.evaluate(frameState, feature) : DEFAULT_SHOW_VALUE;
+            var silhouette = defined(style.silhouette) ? style.silhouette.evaluate(frameState, feature) : DEFAULT_SILHOUETTE_VALUE;
             this.setColor(i, color);
             this.setShow(i, show);
+            this.setSilhouette(i, silhouette);
         }
     };
 
@@ -1150,7 +1178,7 @@ define([
                     '    if (gl_FragColor.a == 0.0) { \n' + // per-feature show: alpha == 0 - false, non-zeo - true
                     '        discard; \n' +
                     '    } \n' +
-                    '    gl_FragColor = texture2D(tile_pickTexture, tile_featureSt); \n' +
+                    '    gl_FragColor = vec4(texture2D(tile_pickTexture, tile_featureSt).rgb, 0.0); \n' +
                     '}';
             } else {
                 newMain =
@@ -1167,7 +1195,7 @@ define([
                     '    if (gl_FragColor.a == 0.0) { \n' +
                     '        discard; \n' +
                     '    } \n' +
-                    '    gl_FragColor = texture2D(tile_pickTexture, tile_featureSt); \n' +
+                    '    gl_FragColor = vec4(texture2D(tile_pickTexture, tile_featureSt).rgb, 0.0); \n' +
                     '}';
             }
 
@@ -1198,6 +1226,27 @@ define([
             };
 
             return combine(batchUniformMap, uniformMap);
+        };
+    };
+
+    Cesium3DTileBatchTable.prototype.getSilhouetteFragmentShaderCallback = function() {
+        if (this.featuresLength === 0) {
+            return;
+        }
+
+        return function(source) {
+            var renamedSource = ShaderSource.replaceMain(source, 'tile_pick_main');
+            var newMain =
+                'void main() \n' +
+                '{ \n' +
+                '    tile_pick_main(); \n' +
+                '    vec4 color = texture2D(tile_pickTexture, tile_featureSt); \n' +
+                '    if (color.a == 0.0) { \n' +
+                '        discard; \n' +
+                '    } \n' +
+                '}';
+
+            return renamedSource + '\n' + newMain;
         };
     };
 
@@ -1423,6 +1472,7 @@ define([
                 bytes[offset + 3] = Color.floatToByte(pickColor.alpha);
             }
 
+            batchTable._pickValues = bytes;
             batchTable._pickTexture = createTexture(batchTable, context, bytes);
             content._tileset._statistics.batchTableByteLength += batchTable._pickTexture.sizeInBytes;
         }
@@ -1440,13 +1490,23 @@ define([
         });
     }
 
+    function updatePickTexture(batchTable, context) {
+        createPickTexture(batchTable, context);
+        var dimensions = batchTable._textureDimensions;
+        batchTable._pickTexture.copyFrom({
+            width : dimensions.x,
+            height : dimensions.y,
+            arrayBufferView : batchTable._pickValues
+        });
+    }
+
     Cesium3DTileBatchTable.prototype.update = function(tileset, frameState) {
         var context = frameState.context;
         this._defaultTexture = context.defaultTexture;
 
-        if (frameState.passes.pick) {
+        if (frameState.passes.pick || frameState.passes.silhouette) {
             // Create pick texture on-demand
-            createPickTexture(this, context);
+            updatePickTexture(this, context);
         }
 
         if (this._batchValuesDirty) {

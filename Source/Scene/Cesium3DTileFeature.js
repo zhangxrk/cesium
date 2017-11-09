@@ -98,6 +98,7 @@ define([
             },
             set : function(value) {
                 this._content.silhouette = value;
+                this._content.batchTable.setSilhouette(this._batchId, value);
             }
         },
 

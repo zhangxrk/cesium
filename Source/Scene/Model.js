@@ -614,6 +614,7 @@ define([
         this._pickVertexShaderLoaded = options.pickVertexShaderLoaded;
         this._pickFragmentShaderLoaded = options.pickFragmentShaderLoaded;
         this._pickUniformMapLoaded = options.pickUniformMapLoaded;
+        this._silhouetteFragmentShaderLoaded = options.silhouetteFragmentShaderLoaded;
         this._ignoreCommands = defaultValue(options.ignoreCommands, false);
         this._requestType = options.requestType;
         this._upAxis = defaultValue(options.upAxis, Axis.Y);
@@ -4440,8 +4441,18 @@ define([
         return (distance2 >= nearSquared) && (distance2 <= farSquared);
     }
 
-    function deriveSilhouetteCommand(command) {
+    function deriveSilhouetteCommand(model, command, context) {
         var silhouetteCommand = DrawCommand.shallowClone(command);
+        if (defined(model._silhouetteFragmentShaderLoaded)) {
+            var shaderProgram = silhouetteCommand.shaderProgram;
+            var fs = model._silhouetteFragmentShaderLoaded(shaderProgram.fragmentShaderSource.sources[0]);
+            silhouetteCommand.shaderProgram = ShaderProgram.fromCache({
+                context : context,
+                vertexShaderSource : shaderProgram.vertexShaderSource,
+                fragmentShaderSource : fs,
+                attributeLocations : shaderProgram._attributeLocations
+            });
+        }
         silhouetteCommand.pass = Pass.SILHOUETTE;
         return silhouetteCommand;
     }
@@ -4757,7 +4768,7 @@ define([
                     if (nc.show) {
                         var silhouetteCommand = nc.silhouetteCommand;
                         if (!defined(silhouetteCommand)) {
-                            silhouetteCommand = nc.silhouetteCommand = deriveSilhouetteCommand(nc.pickCommand);
+                            silhouetteCommand = nc.silhouetteCommand = deriveSilhouetteCommand(this, nc.pickCommand, context);
                         }
                         commandList.push(silhouetteCommand);
                     }
