@@ -1,85 +1,42 @@
-attribute vec3 positionHigh;
-attribute vec3 positionLow;
-attribute vec3 normal;
+#ifdef VECTOR_TILE
+attribute vec3 position;
+attribute float a_batchId;
 
-uniform float centralBodyMinimumAltitude;
-uniform float LODNegativeToleranceOverDistance;
+uniform mat4 u_modifiedModelViewProjection;
+#else
+attribute vec3 position3DHigh;
+attribute vec3 position3DLow;
+attribute vec4 color;
+attribute float batchId;
+#endif
 
-varying float v_z;
+#ifdef EXTRUDED_GEOMETRY
+attribute vec3 extrudeDirection;
 
-vec4 czm_depthClampNearFarPlane(vec4 vertexInClipCoordinates)
-{
-    //v_z = (0.5 * (vertexInClipCoordinates.z / vertexInClipCoordinates.w) + 0.5) * vertexInClipCoordinates.w;
-    //vertexInClipCoordinates.z = min(vertexInClipCoordinates.z, vertexInClipCoordinates.w);
-    return vertexInClipCoordinates;
-}
+uniform float u_globeMinimumAltitude;
+#endif
 
-vec4 clipPointToPlane(vec3 p0, vec3 p1, bool nearPlane)
-{
-    float planeDistance = nearPlane ? czm_entireFrustum.x : czm_entireFrustum.y;
-    //float offset = nearPlane ? 0.001 : -0.001;
-    float offset = 0.001;
-    
-    p0 = (czm_modelViewRelativeToEye * vec4(p0, 1.0)).xyz;
-    p1 = (czm_modelViewRelativeToEye * vec4(p1, 1.0)).xyz;
-    
-    vec3 diff = p1 - p0;
-    float magnitude = length(diff);
-    vec3 direction = normalize(diff);
-    float denominator = -direction.z;
-    float pointDistance = -(planeDistance + p0.z);
-    bool behindPlane = nearPlane ? pointDistance < 0.0 : pointDistance > 0.0;
-    
-    bool culledByPlane = false;
-    
-    if (behindPlane && abs(denominator) < czm_epsilon7)
-    {
-        // point is behind and parallel to the plane
-        culledByPlane = true;
-    }
-    else if (behindPlane && abs(denominator) > czm_epsilon7)
-    {
-        // find intersection of ray and the plane
-        // t = (-dot(plane normal, point on plane) - dot(plane normal, ray origin)) / dot(plane normal, ray direction)
-        float t = (planeDistance + p0.z) / denominator;
-        if (t < 0.0 || t > magnitude)
-        {
-            // entire segment is behind the plane
-            culledByPlane = true;
-        }
-        else
-        {
-            // compute intersection with plane slightly offset
-            // to prevent precision artifacts
-            t += offset;
-            p0 = p0 + t * direction;
-        }
-    }
-    
-    if (culledByPlane) {
-        // the segment is behind the plane. push to plane and
-        // slightly offset to prevent precision artifacts
-        //p0.z = min(p0.z, -(planeDistance + offset));
-    }
-    
-    return czm_projection * vec4(p0, 1.0);
-}
+#ifndef VECTOR_TILE
+varying vec4 v_color;
+#endif
 
 void main()
 {
-    vec4 position = czm_translateRelativeToEye(positionHigh, positionLow);
-    
-    float delta = 1.0; // TODO: moving the vertex is a function of the view
-    
-    vec3 eyePosition = position.xyz;
-    vec3 movedPosition = position.xyz + normal * delta;
-    
-    if (all(equal(normal, vec3(0.0))))
-    {
-        gl_Position = czm_depthClampNearFarPlane(clipPointToPlane(eyePosition, movedPosition, false));
-    }
-    else
-    {
-        gl_Position = czm_depthClampNearFarPlane(clipPointToPlane(movedPosition, eyePosition, true));
-    }
+#ifdef VECTOR_TILE
+    gl_Position = czm_depthClampFarPlane(u_modifiedModelViewProjection * vec4(position, 1.0));
+#else
+    v_color = color;
+
+    vec4 position = czm_computePosition();
+
+#ifdef EXTRUDED_GEOMETRY
+    float delta = min(u_globeMinimumAltitude, czm_geometricToleranceOverMeter * length(position.xyz));
+    delta *= czm_sceneMode == czm_sceneMode3D ? 1.0 : 0.0;
+
+    //extrudeDirection is zero for the top layer
+    position = position + vec4(extrudeDirection * delta, 0.0);
+#endif
+
+    gl_Position = czm_depthClampFarPlane(czm_modelViewProjectionRelativeToEye * position);
+#endif
 }

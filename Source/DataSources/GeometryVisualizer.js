@@ -1,14 +1,15 @@
-/*global define*/
 define([
         '../Core/AssociativeArray',
         '../Core/BoundingSphere',
         '../Core/defined',
         '../Core/destroyObject',
         '../Core/DeveloperError',
+        '../Scene/ShadowMode',
         './BoundingSphereState',
         './ColorMaterialProperty',
         './StaticGeometryColorBatch',
         './StaticGeometryPerMaterialBatch',
+        './StaticGroundGeometryColorBatch',
         './StaticOutlineGeometryBatch'
     ], function(
         AssociativeArray,
@@ -16,22 +17,24 @@ define([
         defined,
         destroyObject,
         DeveloperError,
+        ShadowMode,
         BoundingSphereState,
         ColorMaterialProperty,
         StaticGeometryColorBatch,
         StaticGeometryPerMaterialBatch,
+        StaticGroundGeometryColorBatch,
         StaticOutlineGeometryBatch) {
-    "use strict";
+    'use strict';
 
     var emptyArray = [];
 
-    var DynamicGeometryBatch = function(primitives) {
+    function DynamicGeometryBatch(primitives, groundPrimitives) {
         this._primitives = primitives;
+        this._groundPrimitives = groundPrimitives;
         this._dynamicUpdaters = new AssociativeArray();
-    };
-
+    }
     DynamicGeometryBatch.prototype.add = function(time, updater) {
-        this._dynamicUpdaters.set(updater.entity.id, updater.createDynamicUpdater(this._primitives));
+        this._dynamicUpdaters.set(updater.entity.id, updater.createDynamicUpdater(this._primitives, this._groundPrimitives));
     };
 
     DynamicGeometryBatch.prototype.remove = function(updater) {
@@ -82,23 +85,38 @@ define([
             return;
         }
 
+        var shadows;
+        if (updater.outlineEnabled || updater.fillEnabled) {
+            shadows = updater.shadowsProperty.getValue(time);
+        }
+
         if (updater.outlineEnabled) {
-            that._outlineBatch.add(time, updater);
+            that._outlineBatches[shadows].add(time, updater);
+        }
+
+        var multiplier = 0;
+        if (defined(updater.depthFailMaterialProperty)) {
+            multiplier = updater.depthFailMaterialProperty instanceof ColorMaterialProperty ? 1 : 2;
+        }
+
+        var index;
+        if (defined(shadows)) {
+            index = shadows + multiplier * ShadowMode.NUMBER_OF_SHADOW_MODES;
         }
 
         if (updater.fillEnabled) {
-            if (updater.isClosed) {
+            if (updater.onTerrain) {
+                that._groundColorBatch.add(time, updater);
+            } else if (updater.isClosed) {
                 if (updater.fillMaterialProperty instanceof ColorMaterialProperty) {
-                    that._closedColorBatch.add(time, updater);
+                    that._closedColorBatches[index].add(time, updater);
                 } else {
-                    that._closedMaterialBatch.add(time, updater);
+                    that._closedMaterialBatches[index].add(time, updater);
                 }
+            } else if (updater.fillMaterialProperty instanceof ColorMaterialProperty) {
+                that._openColorBatches[index].add(time, updater);
             } else {
-                if (updater.fillMaterialProperty instanceof ColorMaterialProperty) {
-                    that._openColorBatch.add(time, updater);
-                } else {
-                    that._openMaterialBatch.add(time, updater);
-                }
+                that._openMaterialBatches[index].add(time, updater);
             }
         }
     }
@@ -112,7 +130,7 @@ define([
      * @param {Scene} scene The scene the primitives will be rendered in.
      * @param {EntityCollection} entityCollection The entityCollection to visualize.
      */
-    var GeometryVisualizer = function(type, scene, entityCollection) {
+    function GeometryVisualizer(type, scene, entityCollection) {
         //>>includeStart('debug', pragmas.debug);
         if (!defined(type)) {
             throw new DeveloperError('type is required.');
@@ -128,20 +146,45 @@ define([
         this._type = type;
 
         var primitives = scene.primitives;
+        var groundPrimitives = scene.groundPrimitives;
         this._scene = scene;
         this._primitives = primitives;
+        this._groundPrimitives = groundPrimitives;
         this._entityCollection = undefined;
         this._addedObjects = new AssociativeArray();
         this._removedObjects = new AssociativeArray();
         this._changedObjects = new AssociativeArray();
 
-        this._outlineBatch = new StaticOutlineGeometryBatch(primitives, scene);
-        this._closedColorBatch = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, true);
-        this._closedMaterialBatch = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, true);
-        this._openColorBatch = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, false);
-        this._openMaterialBatch = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, false);
-        this._dynamicBatch = new DynamicGeometryBatch(primitives);
-        this._batches = [this._closedColorBatch, this._closedMaterialBatch, this._openColorBatch, this._openMaterialBatch, this._dynamicBatch, this._outlineBatch];
+        var numberOfShadowModes = ShadowMode.NUMBER_OF_SHADOW_MODES;
+        this._outlineBatches = new Array(numberOfShadowModes);
+        this._closedColorBatches = new Array(numberOfShadowModes * 3);
+        this._closedMaterialBatches = new Array(numberOfShadowModes * 3);
+        this._openColorBatches = new Array(numberOfShadowModes * 3);
+        this._openMaterialBatches = new Array(numberOfShadowModes * 3);
+
+        for (var i = 0; i < numberOfShadowModes; ++i) {
+            this._outlineBatches[i] = new StaticOutlineGeometryBatch(primitives, scene, i);
+
+            this._closedColorBatches[i] = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, undefined, true, i);
+            this._closedMaterialBatches[i] = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, undefined, true, i);
+            this._openColorBatches[i] = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, undefined, false, i);
+            this._openMaterialBatches[i] = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, undefined, false, i);
+
+            this._closedColorBatches[i + numberOfShadowModes] = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, type.perInstanceColorAppearanceType, true, i);
+            this._closedMaterialBatches[i + numberOfShadowModes] = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, type.perInstanceColorAppearanceType, true, i);
+            this._openColorBatches[i + numberOfShadowModes] = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, type.perInstanceColorAppearanceType, false, i);
+            this._openMaterialBatches[i + numberOfShadowModes] = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, type.perInstanceColorAppearanceType, false, i);
+
+            this._closedColorBatches[i + numberOfShadowModes * 2] = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, type.materialAppearanceType, true, i);
+            this._closedMaterialBatches[i + numberOfShadowModes * 2] = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, type.materialAppearanceType, true, i);
+            this._openColorBatches[i + numberOfShadowModes * 2] = new StaticGeometryColorBatch(primitives, type.perInstanceColorAppearanceType, type.materialAppearanceType, false, i);
+            this._openMaterialBatches[i + numberOfShadowModes * 2] = new StaticGeometryPerMaterialBatch(primitives, type.materialAppearanceType, type.materialAppearanceType, false, i);
+        }
+
+        this._groundColorBatch = new StaticGroundGeometryColorBatch(groundPrimitives);
+        this._dynamicBatch = new DynamicGeometryBatch(primitives, groundPrimitives);
+
+        this._batches = this._outlineBatches.concat(this._closedColorBatches, this._closedMaterialBatches, this._openColorBatches, this._openMaterialBatches, this._groundColorBatch, this._dynamicBatch);
 
         this._subscriptions = new AssociativeArray();
         this._updaters = new AssociativeArray();
@@ -149,7 +192,7 @@ define([
         this._entityCollection = entityCollection;
         entityCollection.collectionChanged.addEventListener(GeometryVisualizer.prototype._onCollectionChanged, this);
         this._onCollectionChanged(entityCollection, entityCollection.values, emptyArray);
-    };
+    }
 
     /**
      * Updates all of the primitives created by this visualizer to match their
@@ -178,6 +221,25 @@ define([
         var id;
         var updater;
 
+        for (i = changed.length - 1; i > -1; i--) {
+            entity = changed[i];
+            id = entity.id;
+            updater = this._updaters.get(id);
+
+            //If in a single update, an entity gets removed and a new instance
+            //re-added with the same id, the updater no longer tracks the
+            //correct entity, we need to both remove the old one and
+            //add the new one, which is done by pushing the entity
+            //onto the removed/added lists.
+            if (updater.entity === entity) {
+                removeUpdater(this, updater);
+                insertUpdaterIntoBatch(this, time, updater);
+            } else {
+                removed.push(entity);
+                added.push(entity);
+            }
+        }
+
         for (i = removed.length - 1; i > -1; i--) {
             entity = removed[i];
             id = entity.id;
@@ -196,14 +258,6 @@ define([
             this._updaters.set(id, updater);
             insertUpdaterIntoBatch(this, time, updater);
             this._subscriptions.set(id, updater.geometryChanged.addEventListener(GeometryVisualizer._onGeometryChanged, this));
-        }
-
-        for (i = changed.length - 1; i > -1; i--) {
-            entity = changed[i];
-            id = entity.id;
-            updater = this._updaters.get(id);
-            removeUpdater(this, updater);
-            insertUpdaterIntoBatch(this, time, updater);
         }
 
         addedObjects.removeAll();
@@ -248,7 +302,6 @@ define([
         var tmp = getBoundingSphereBoundingSphereScratch;
 
         var count = 0;
-        var resultState;
         var state = BoundingSphereState.DONE;
         var batches = this._batches;
         var batchesLength = batches.length;

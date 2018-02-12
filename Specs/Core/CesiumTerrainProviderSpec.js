@@ -1,30 +1,40 @@
-/*global defineSuite*/
 defineSuite([
         'Core/CesiumTerrainProvider',
         'Core/DefaultProxy',
-        'Core/defined',
+        'Core/Ellipsoid',
         'Core/GeographicTilingScheme',
+        'Core/getAbsoluteUri',
         'Core/HeightmapTerrainData',
         'Core/loadWithXhr',
         'Core/Math',
         'Core/QuantizedMeshTerrainData',
+        'Core/Request',
+        'Core/RequestScheduler',
+        'Core/Resource',
         'Core/TerrainProvider',
         'Specs/pollToPromise',
         'ThirdParty/when'
     ], function(
         CesiumTerrainProvider,
         DefaultProxy,
-        defined,
+        Ellipsoid,
         GeographicTilingScheme,
+        getAbsoluteUri,
         HeightmapTerrainData,
         loadWithXhr,
         CesiumMath,
         QuantizedMeshTerrainData,
+        Request,
+        RequestScheduler,
+        Resource,
         TerrainProvider,
         pollToPromise,
         when) {
-    "use strict";
-    /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn*/
+    'use strict';
+
+    beforeEach(function() {
+        RequestScheduler.clearForSpecs();
+    });
 
     afterEach(function() {
         loadWithXhr.load = loadWithXhr.defaultLoad;
@@ -49,14 +59,6 @@ defineSuite([
         return returnTileJson('Data/CesiumTerrainTileJson/QuantizedMesh.tile.json');
     }
 
-    function returnQuantizedMesh20TileJson() {
-        return returnTileJson('Data/CesiumTerrainTileJson/QuantizedMesh2.0.tile.json');
-    }
-
-    function returnQuantizedMesh11TileJson() {
-        return returnTileJson('Data/CesiumTerrainTileJson/QuantizedMesh1.1.tile.json');
-    }
-
     function returnVertexNormalTileJson() {
         return returnTileJson('Data/CesiumTerrainTileJson/VertexNormals.tile.json');
     }
@@ -71,6 +73,20 @@ defineSuite([
 
     function returnPartialAvailabilityTileJson() {
         return returnTileJson('Data/CesiumTerrainTileJson/PartialAvailability.tile.json');
+    }
+
+    function returnParentUrlTileJson() {
+        var paths = ['Data/CesiumTerrainTileJson/ParentUrl.tile.json',
+                     'Data/CesiumTerrainTileJson/Parent.tile.json'];
+        var i = 0;
+        var oldLoad = loadWithXhr.load;
+        loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
+            if (url.indexOf('layer.json') >= 0) {
+                loadWithXhr.defaultLoad(paths[i++], responseType, method, data, headers, deferred);
+            } else {
+                return oldLoad(url, responseType, method, data, headers, deferred, overrideMimeType);
+            }
+        };
     }
 
     function waitForTile(level, x, y, requestNormals, requestWaterMask, f) {
@@ -91,6 +107,12 @@ defineSuite([
         });
     }
 
+    function createRequest() {
+        return new Request({
+            throttleByServer : true
+        });
+    }
+
     it('conforms to TerrainProvider interface', function() {
         expect(CesiumTerrainProvider).toConformToInterface(TerrainProvider);
     });
@@ -106,6 +128,32 @@ defineSuite([
         }).toThrowDeveloperError();
     });
 
+    it('resolves readyPromise', function() {
+        var provider = new CesiumTerrainProvider({
+            url : 'made/up/url'
+        });
+
+        return provider.readyPromise.then(function (result) {
+            expect(result).toBe(true);
+            expect(provider.ready).toBe(true);
+        });
+    });
+
+    it('resolves readyPromise with Resource', function() {
+        var resource = new Resource({
+            url : 'made/up/url'
+        });
+
+        var provider = new CesiumTerrainProvider({
+            url : resource
+        });
+
+        return provider.readyPromise.then(function (result) {
+            expect(result).toBe(true);
+            expect(provider.ready).toBe(true);
+        });
+    });
+
     it('uses geographic tiling scheme by default', function() {
         returnHeightmapTileJson();
 
@@ -118,6 +166,22 @@ defineSuite([
         }).then(function() {
             var tilingScheme = provider.tilingScheme;
             expect(tilingScheme instanceof GeographicTilingScheme).toBe(true);
+        });
+    });
+
+    it('can use a custom ellipsoid', function() {
+        returnHeightmapTileJson();
+
+        var ellipsoid = new Ellipsoid(1, 2, 3);
+        var provider = new CesiumTerrainProvider({
+            url : 'made/up/url',
+            ellipsoid : ellipsoid
+        });
+
+        return pollToPromise(function() {
+            return provider.ready;
+        }).then(function() {
+            expect(provider.tilingScheme.ellipsoid).toEqual(ellipsoid);
         });
     });
 
@@ -211,6 +275,42 @@ defineSuite([
         }).then(function() {
             expect(provider.requestVertexNormals).toBe(false);
             expect(provider.hasVertexNormals).toBe(false);
+        });
+    });
+
+    it('requests parent layer.json', function() {
+        returnParentUrlTileJson();
+
+        var provider = new CesiumTerrainProvider({
+            url : 'made/up/url',
+            requestVertexNormals : true,
+            requestWaterMask : true
+        });
+
+        return pollToPromise(function() {
+            return provider.ready;
+        }).then(function() {
+            expect(provider.credit.text).toBe('This is a child tileset! This amazing data is courtesy The Amazing Data Source!');
+            expect(provider.requestVertexNormals).toBe(true);
+            expect(provider.requestWaterMask).toBe(true);
+            expect(provider.hasVertexNormals).toBe(false); // Neither tileset has them
+            expect(provider.hasWaterMask).toBe(true); // The child tileset has them
+            expect(provider.availability.isTileAvailable(1, 2, 1)).toBe(true); // Both have this
+            expect(provider.availability.isTileAvailable(1, 3, 1)).toBe(true); // Parent has this, but child doesn't
+            expect(provider.availability.isTileAvailable(2, 0, 0)).toBe(false); // Neither has this
+
+            var layers = provider._layers;
+            expect(layers.length).toBe(2);
+            expect(layers[0].hasVertexNormals).toBe(false);
+            expect(layers[0].hasWaterMask).toBe(true);
+            expect(layers[0].availability.isTileAvailable(1, 2, 1)).toBe(true);
+            expect(layers[0].availability.isTileAvailable(1, 3, 1)).toBe(false);
+            expect(layers[0].availability.isTileAvailable(2, 0, 0)).toBe(false);
+            expect(layers[1].hasVertexNormals).toBe(false);
+            expect(layers[1].hasWaterMask).toBe(false);
+            expect(layers[1].availability.isTileAvailable(1, 2, 1)).toBe(true);
+            expect(layers[1].availability.isTileAvailable(1, 3, 1)).toBe(true);
+            expect(layers[1].availability.isTileAvailable(2, 0, 0)).toBe(false);
         });
     });
 
@@ -336,6 +436,53 @@ defineSuite([
     });
 
     describe('requestTileGeometry', function() {
+
+        it('uses multiple urls specified in layer.json', function() {
+            returnTileJson('Data/CesiumTerrainTileJson/MultipleUrls.tile.json');
+
+            var provider = new CesiumTerrainProvider({
+                url : 'made/up/url'
+            });
+
+            return pollToPromise(function() {
+                return provider.ready;
+            }).then(function() {
+                spyOn(loadWithXhr, 'load');
+                provider.requestTileGeometry(0, 0, 0);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo0.com');
+                provider.requestTileGeometry(1, 0, 0);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo1.com');
+                provider.requestTileGeometry(1, -1, 0);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo2.com');
+                provider.requestTileGeometry(1, 0, 1);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo3.com');
+            });
+        });
+
+        it('supports scheme-less template URLs in layer.json resolved with absolute URL', function() {
+            returnTileJson('Data/CesiumTerrainTileJson/MultipleUrls.tile.json');
+
+            var url = getAbsoluteUri('Data/CesiumTerrainTileJson');
+
+            var provider = new CesiumTerrainProvider({
+                url : url
+            });
+
+            return pollToPromise(function() {
+                return provider.ready;
+            }).then(function() {
+                spyOn(loadWithXhr, 'load');
+                provider.requestTileGeometry(0, 0, 0);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo0.com');
+                provider.requestTileGeometry(1, 0, 0);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo1.com');
+                provider.requestTileGeometry(1, -1, 0);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo2.com');
+                provider.requestTileGeometry(1, 0, 1);
+                expect(loadWithXhr.load.calls.mostRecent().args[0]).toContain('foo3.com');
+            });
+        });
+
         it('uses the proxy if one is supplied', function() {
             var baseUrl = 'made/up/url';
 
@@ -361,8 +508,6 @@ defineSuite([
         });
 
         it('provides HeightmapTerrainData', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 // Just return any old file, as long as its big enough
                 loadWithXhr.defaultLoad('Data/EarthOrientationParameters/IcrfToFixedStkComponentsRotationData.json', responseType, method, data, headers, deferred);
@@ -376,8 +521,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.terrain', responseType, method, data, headers, deferred);
             };
@@ -390,8 +533,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with 32bit indices', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.32bitIndices.terrain', responseType, method, data, headers, deferred);
             };
@@ -405,8 +546,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with VertexNormals', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.vertexnormals.terrain', responseType, method, data, headers, deferred);
             };
@@ -420,8 +559,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with WaterMask', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.watermask.terrain', responseType, method, data, headers, deferred);
             };
@@ -435,8 +572,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with VertexNormals and WaterMask', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.octvertexnormals.watermask.terrain', responseType, method, data, headers, deferred);
             };
@@ -451,8 +586,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with OctVertexNormals', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.octvertexnormals.terrain', responseType, method, data, headers, deferred);
             };
@@ -466,8 +599,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with VertexNormals and unknown extensions', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.vertexnormals.unknownext.terrain', responseType, method, data, headers, deferred);
             };
@@ -481,8 +612,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with OctVertexNormals and unknown extensions', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.octvertexnormals.unknownext.terrain', responseType, method, data, headers, deferred);
             };
@@ -496,8 +625,6 @@ defineSuite([
         });
 
         it('provides QuantizedMeshTerrainData with unknown extension', function() {
-            var baseUrl = 'made/up/url';
-
             loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
                 loadWithXhr.defaultLoad('Data/CesiumTerrainTileJson/tile.unknownext.terrain', responseType, method, data, headers, deferred);
             };
@@ -528,15 +655,15 @@ defineSuite([
             return pollToPromise(function() {
                 return terrainProvider.ready;
             }).then(function() {
-                var promise = terrainProvider.requestTileGeometry(0, 0, 0);
+                var promise;
+                var i;
+                for (i = 0; i < RequestScheduler.maximumRequestsPerServer; ++i) {
+                    promise = terrainProvider.requestTileGeometry(0, 0, 0, createRequest());
+                }
+                RequestScheduler.update();
                 expect(promise).toBeDefined();
 
-                var i;
-                for (i = 0; i < 10; ++i) {
-                    promise = terrainProvider.requestTileGeometry(0, 0, 0);
-                }
-
-                promise = terrainProvider.requestTileGeometry(0, 0, 0);
+                promise = terrainProvider.requestTileGeometry(0, 0, 0, createRequest());
                 expect(promise).toBeUndefined();
 
                 for (i = 0; i < deferreds.length; ++i) {
@@ -580,6 +707,19 @@ defineSuite([
             }).then(function() {
                 expect(terrainProvider.getTileDataAvailable(1, 3, 2)).toBe(true);
                 expect(terrainProvider.getTileDataAvailable(1, 0, 2)).toBe(false);
+            });
+        });
+
+        it('supports a query string in the base URL', function() {
+            loadWithXhr.load = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
+                // Just return any old file, as long as its big enough
+                loadWithXhr.defaultLoad('Data/EarthOrientationParameters/IcrfToFixedStkComponentsRotationData.json', responseType, method, data, headers, deferred);
+            };
+
+            returnHeightmapTileJson();
+
+            return waitForTile(0, 0, 0, false, false, function(loadedData) {
+                expect(loadedData).toBeInstanceOf(HeightmapTerrainData);
             });
         });
     });

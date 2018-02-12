@@ -1,39 +1,54 @@
-/*global define*/
 define([
-        './defined',
-        './defineProperties',
-        './DeveloperError'
-    ], function(
-        defined,
-        defineProperties,
-        DeveloperError) {
-    "use strict";
+    './defaultValue',
+    './defined',
+    './defineProperties',
+    './DeveloperError'
+], function(
+    defaultValue,
+    defined,
+    defineProperties,
+    DeveloperError) {
+    'use strict';
 
     var nextCreditId = 0;
     var creditToId = {};
 
     /**
      * A credit contains data pertaining to how to display attributions/credits for certain content on the screen.
-     *
-     * @param {String} [text] The text to be displayed on the screen if no imageUrl is specified.
-     * @param {String} [imageUrl] The source location for an image
-     * @param {String} [link] A URL location for which the credit will be hyperlinked
+     * @param {Object} [options] An object with the following properties
+     * @param {String} [options.text] The text to be displayed on the screen if no imageUrl is specified.
+     * @param {String} [options.imageUrl] The source location for an image
+     * @param {String} [options.link] A URL location for which the credit will be hyperlinked
+     * @param {String} [options.showOnScreen=false] If true, the credit will be visible in the main credit container.  Otherwise, it will appear in a popover
      *
      * @alias Credit
      * @constructor
      *
+     * @exception {DeveloperError} options.text, options.imageUrl, or options.link is required.
+     *
      * @example
      * //Create a credit with a tooltip, image and link
-     * var credit = new Cesium.Credit('Cesium', '/images/cesium_logo.png', 'http://cesiumjs.org/');
+     * var credit = new Cesium.Credit({
+     *     text : 'Cesium',
+     *     imageUrl : '/images/cesium_logo.png',
+     *     link : 'https://cesiumjs.org/'
+     * });
      */
-    var Credit = function(text, imageUrl, link) {
+    function Credit(options) {
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+
+        var text = options.text;
+        var imageUrl = options.imageUrl;
+        var link = options.link;
+        var showOnScreen = defaultValue(options.showOnScreen, false);
+
         var hasLink = (defined(link));
         var hasImage = (defined(imageUrl));
         var hasText = (defined(text));
 
         //>>includeStart('debug', pragmas.debug);
         if (!hasText && !hasImage && !hasLink) {
-            throw new DeveloperError('text, imageUrl or link is required');
+            throw new DeveloperError('options.text, options.imageUrl, or options.link is required.');
         }
         //>>includeEnd('debug');
 
@@ -46,6 +61,7 @@ define([
         this._link = link;
         this._hasLink = hasLink;
         this._hasImage = hasImage;
+        this._showOnScreen = showOnScreen;
 
         // Credits are immutable so generate an id to use to optimize equal()
         var id;
@@ -59,13 +75,14 @@ define([
         }
 
         this._id = id;
-    };
+    }
 
     defineProperties(Credit.prototype, {
         /**
          * The credit text
          * @memberof Credit.prototype
          * @type {String}
+         * @readonly
          */
         text : {
             get : function() {
@@ -77,6 +94,7 @@ define([
          * The source location for the image.
          * @memberof Credit.prototype
          * @type {String}
+         * @readonly
          */
         imageUrl : {
             get : function() {
@@ -88,6 +106,7 @@ define([
          * A URL location for the credit hyperlink
          * @memberof Credit.prototype
          * @type {String}
+         * @readonly
          */
         link : {
             get : function() {
@@ -98,12 +117,25 @@ define([
         /**
          * @memberof Credit.prototype
          * @type {Number}
+         * @readonly
          *
          * @private
          */
         id : {
             get : function() {
                 return this._id;
+            }
+        },
+
+        /**
+         * Whether the credit should be displayed on screen or in a lightbox
+         * @memberof Credit.prototype
+         * @type {Boolean}
+         * @readonly
+         */
+        showOnScreen : {
+            get : function() {
+                return this._showOnScreen;
             }
         }
     });
@@ -130,7 +162,7 @@ define([
      * Returns true if the credits are equal
      *
      * @param {Credit} left The first credit
-     * @param {Credit} left The second credit
+     * @param {Credit} right The second credit
      * @returns {Boolean} <code>true</code> if left and right are equal, <code>false</code> otherwise.
      */
     Credit.equals = function(left, right) {
@@ -143,7 +175,7 @@ define([
     /**
      * Returns true if the credits are equal
      *
-     * @param {Credit} credits The credit to compare to.
+     * @param {Credit} credit The credit to compare to.
      * @returns {Boolean} <code>true</code> if left and right are equal, <code>false</code> otherwise.
      */
     Credit.prototype.equals = function(credit) {

@@ -1,11 +1,10 @@
-/*global define*/
 define([
         './defineProperties',
         './DeveloperError'
     ], function(
         defineProperties,
         DeveloperError) {
-    "use strict";
+    'use strict';
 
     /**
      * A tiling scheme for geometry or imagery on the surface of an ellipsoid.  At level-of-detail zero,
@@ -20,9 +19,11 @@ define([
      * @see WebMercatorTilingScheme
      * @see GeographicTilingScheme
      */
-    var TilingScheme = function TilingScheme(options) {
+    function TilingScheme(options) {
+        //>>includeStart('debug', pragmas.debug);
         throw new DeveloperError('This type should not be instantiated directly.  Instead, use WebMercatorTilingScheme or GeographicTilingScheme.');
-    };
+        //>>includeEnd('debug');
+    }
 
     defineProperties(TilingScheme.prototype, {
         /**
@@ -47,7 +48,7 @@ define([
         /**
          * Gets the map projection used by the tiling scheme.
          * @memberof TilingScheme.prototype
-         * @type {Projection}
+         * @type {MapProjection}
          */
         projection : {
             get : DeveloperError.throwInstantiationError
@@ -73,7 +74,7 @@ define([
     TilingScheme.prototype.getNumberOfYTilesAtLevel = DeveloperError.throwInstantiationError;
 
     /**
-     * Transforms an rectangle specified in geodetic radians to the native coordinate system
+     * Transforms a rectangle specified in geodetic radians to the native coordinate system
      * of this tiling scheme.
      * @function
      *
@@ -86,7 +87,7 @@ define([
     TilingScheme.prototype.rectangleToNativeRectangle = DeveloperError.throwInstantiationError;
 
     /**
-     * Converts tile x, y coordinates and level to an rectangle expressed in the native coordinates
+     * Converts tile x, y coordinates and level to a rectangle expressed in the native coordinates
      * of the tiling scheme.
      * @function
      *
@@ -121,7 +122,7 @@ define([
      *
      * @param {Cartographic} position The position.
      * @param {Number} level The tile level-of-detail.  Zero is the least detailed.
-     * @param {Cartesian} [result] The instance to which to copy the result, or undefined if a new instance
+     * @param {Cartesian2} [result] The instance to which to copy the result, or undefined if a new instance
      *        should be created.
      * @returns {Cartesian2} The specified 'result', or a new object containing the tile x, y coordinates
      *          if 'result' is undefined.

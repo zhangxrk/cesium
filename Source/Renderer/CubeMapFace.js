@@ -1,20 +1,21 @@
-/*global define*/
 define([
+        '../Core/Check',
         '../Core/defaultValue',
         '../Core/defineProperties',
         '../Core/DeveloperError',
         './PixelDatatype'
     ], function(
+        Check,
         defaultValue,
         defineProperties,
         DeveloperError,
         PixelDatatype) {
-    "use strict";
+    'use strict';
 
     /**
      * @private
      */
-    var CubeMapFace = function(gl, texture, textureTarget, targetFace, pixelFormat, pixelDatatype, size, preMultiplyAlpha, flipY) {
+    function CubeMapFace(gl, texture, textureTarget, targetFace, pixelFormat, pixelDatatype, size, preMultiplyAlpha, flipY) {
         this._gl = gl;
         this._texture = texture;
         this._textureTarget = textureTarget;
@@ -24,7 +25,7 @@ define([
         this._size = size;
         this._preMultiplyAlpha = preMultiplyAlpha;
         this._flipY = flipY;
-    };
+    }
 
     defineProperties(CubeMapFace.prototype, {
         pixelFormat : {
@@ -59,7 +60,8 @@ define([
      *
      * @example
      * // Create a cubemap with 1x1 faces, and make the +x face red.
-     * var cubeMap = context.createCubeMap({
+     * var cubeMap = new CubeMap({
+     *   context : context
      *   width : 1,
      *   height : 1
      * });
@@ -74,15 +76,9 @@ define([
         yOffset = defaultValue(yOffset, 0);
 
         //>>includeStart('debug', pragmas.debug);
-        if (!source) {
-            throw new DeveloperError('source is required.');
-        }
-        if (xOffset < 0) {
-            throw new DeveloperError('xOffset must be greater than or equal to zero.');
-        }
-        if (yOffset < 0) {
-            throw new DeveloperError('yOffset must be greater than or equal to zero.');
-        }
+        Check.defined('source', source);
+        Check.typeOf.number.greaterThanOrEquals('xOffset', xOffset, 0);
+        Check.typeOf.number.greaterThanOrEquals('yOffset', yOffset, 0);
         if (xOffset + source.width > this._size) {
             throw new DeveloperError('xOffset + source.width must be less than or equal to width.');
         }
@@ -142,18 +138,10 @@ define([
         height = defaultValue(height, this._size);
 
         //>>includeStart('debug', pragmas.debug);
-        if (xOffset < 0) {
-            throw new DeveloperError('xOffset must be greater than or equal to zero.');
-        }
-        if (yOffset < 0) {
-            throw new DeveloperError('yOffset must be greater than or equal to zero.');
-        }
-        if (framebufferXOffset < 0) {
-            throw new DeveloperError('framebufferXOffset must be greater than or equal to zero.');
-        }
-        if (framebufferYOffset < 0) {
-            throw new DeveloperError('framebufferYOffset must be greater than or equal to zero.');
-        }
+        Check.typeOf.number.greaterThanOrEquals('xOffset', xOffset, 0);
+        Check.typeOf.number.greaterThanOrEquals('yOffset', yOffset, 0);
+        Check.typeOf.number.greaterThanOrEquals('framebufferXOffset', framebufferXOffset, 0);
+        Check.typeOf.number.greaterThanOrEquals('framebufferYOffset', framebufferYOffset, 0);
         if (xOffset + width > this._size) {
             throw new DeveloperError('xOffset + source.width must be less than or equal to width.');
         }

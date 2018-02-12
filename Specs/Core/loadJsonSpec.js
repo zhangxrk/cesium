@@ -1,23 +1,21 @@
-/*global defineSuite*/
 defineSuite([
         'Core/loadJson',
-        'Core/RequestErrorEvent'
+        'Core/Request',
+        'Core/RequestErrorEvent',
+        'Core/RequestScheduler'
     ], function(
         loadJson,
-        RequestErrorEvent) {
-    "use strict";
-    /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn*/
+        Request,
+        RequestErrorEvent,
+        RequestScheduler) {
+    'use strict';
 
     var fakeXHR;
 
     beforeEach(function() {
         fakeXHR = jasmine.createSpyObj('XMLHttpRequest', ['send', 'open', 'setRequestHeader', 'abort', 'getAllResponseHeaders']);
         fakeXHR.simulateLoad = function(response) {
-            fakeXHR.status = 200;
-            fakeXHR.response = response;
-            if (typeof fakeXHR.onload === 'function') {
-                fakeXHR.onload();
-            }
+            fakeXHR.simulateHttpResponse(200, response);
         };
         fakeXHR.simulateError = function() {
             fakeXHR.response = '';
@@ -25,7 +23,7 @@ defineSuite([
                 fakeXHR.onerror();
             }
         };
-        fakeXHR.simulateHttpError = function(statusCode, response) {
+        fakeXHR.simulateHttpResponse = function(statusCode, response) {
             fakeXHR.status = statusCode;
             fakeXHR.response = response;
             if (typeof fakeXHR.onload === 'function') {
@@ -134,10 +132,50 @@ defineSuite([
         expect(rejectedError).toBeUndefined();
 
         var error = 'some error';
-        fakeXHR.simulateHttpError(404, error);
+        fakeXHR.simulateHttpResponse(404, error);
         expect(resolvedValue).toBeUndefined();
         expect(rejectedError instanceof RequestErrorEvent).toBe(true);
         expect(rejectedError.statusCode).toEqual(404);
         expect(rejectedError.response).toEqual(error);
+    });
+
+    it('returns a promise that resolves with undefined when the status code ise 204', function() {
+        var testUrl = 'http://example.invalid/testuri';
+        var promise = loadJson(testUrl);
+
+        expect(promise).toBeDefined();
+
+        var resolved = false;
+        var resolvedValue;
+        var rejectedError;
+        promise.then(function(value) {
+            resolved = true;
+            resolvedValue = value;
+        }, function(error) {
+            rejectedError = error;
+        });
+
+        expect(resolvedValue).toBeUndefined();
+        expect(rejectedError).toBeUndefined();
+
+        fakeXHR.simulateHttpResponse(204);
+        expect(resolved).toBe(true);
+        expect(resolvedValue).toBeUndefined();
+        expect(rejectedError).toBeUndefined();
+    });
+
+    it('returns undefined if the request is throttled', function() {
+        var oldMaximumRequests = RequestScheduler.maximumRequests;
+        RequestScheduler.maximumRequests = 0;
+
+        var request = new Request({
+            throttle : true
+        });
+
+        var testUrl = 'http://example.invalid/testuri';
+        var promise = loadJson(testUrl, undefined, request);
+        expect(promise).toBeUndefined();
+
+        RequestScheduler.maximumRequests = oldMaximumRequests;
     });
 });

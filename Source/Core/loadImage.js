@@ -1,19 +1,16 @@
-/*global define*/
 define([
-        '../ThirdParty/when',
-        './defaultValue',
+        './Check',
         './defined',
-        './DeveloperError',
-        './isCrossOriginUrl'
+        './defineProperties',
+        './deprecationWarning',
+        './Resource'
     ], function(
-        when,
-        defaultValue,
+        Check,
         defined,
-        DeveloperError,
-        isCrossOriginUrl) {
-    "use strict";
-
-    var dataUriRegex = /^data:/;
+        defineProperties,
+        deprecationWarning,
+        Resource) {
+    'use strict';
 
     /**
      * Asynchronously loads the given image URL.  Returns a promise that will resolve to
@@ -21,14 +18,13 @@ define([
      *
      * @exports loadImage
      *
-     * @param {String|Promise} url The source of the image, or a promise for the URL.
+     * @param {Resource|String} urlOrResource The source URL of the image.
      * @param {Boolean} [allowCrossOrigin=true] Whether to request the image using Cross-Origin
      *        Resource Sharing (CORS).  CORS is only actually used if the image URL is actually cross-origin.
      *        Data URIs are never requested using CORS.
-     * @returns {Promise} a promise that will resolve to the requested data when loaded.
+     * @param {Request} [request] The request object. Intended for internal use only.
+     * @returns {Promise.<Image>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      *
-     * @see {@link http://www.w3.org/TR/cors/|Cross-Origin Resource Sharing}
-     * @see {@link http://wiki.commonjs.org/wiki/Promises/A|CommonJS Promises/A}
      *
      * @example
      * // load a single image asynchronously
@@ -42,54 +38,42 @@ define([
      * when.all([loadImage('image1.png'), loadImage('image2.png')]).then(function(images) {
      *     // images is an array containing all the loaded images
      * });
+     *
+     * @see {@link http://www.w3.org/TR/cors/|Cross-Origin Resource Sharing}
+     * @see {@link http://wiki.commonjs.org/wiki/Promises/A|CommonJS Promises/A}
+     *
+     * @deprecated
      */
-    var loadImage = function(url, allowCrossOrigin) {
+    function loadImage(urlOrResource, allowCrossOrigin, request) {
         //>>includeStart('debug', pragmas.debug);
-        if (!defined(url)) {
-            throw new DeveloperError('url is required.');
-        }
+        Check.defined('urlOrResource', urlOrResource);
         //>>includeEnd('debug');
 
-        allowCrossOrigin = defaultValue(allowCrossOrigin, true);
+        deprecationWarning('loadImage', 'loadImage is deprecated and will be removed in Cesium 1.44. Please use Resource.fetchImage instead.');
 
-        return when(url, function(url) {
-            var crossOrigin;
-
-            // data URIs can't have allowCrossOrigin set.
-            if (dataUriRegex.test(url) || !allowCrossOrigin) {
-                crossOrigin = false;
-            } else {
-                crossOrigin = isCrossOriginUrl(url);
-            }
-
-            var deferred = when.defer();
-
-            loadImage.createImage(url, crossOrigin, deferred);
-
-            return deferred.promise;
+        var resource = Resource.createIfNeeded(urlOrResource, {
+            request: request
         });
-    };
 
-    // This is broken out into a separate function so that it can be mocked for testing purposes.
-    loadImage.createImage = function(url, crossOrigin, deferred) {
-        var image = new Image();
+        return resource.fetchImage(false, allowCrossOrigin);
+    }
 
-        image.onload = function(e) {
-            deferred.resolve(image);
-        };
+    defineProperties(loadImage, {
+        createImage : {
+            get : function() {
+                return Resource._Implementations.createImage;
+            },
+            set : function(value) {
+                Resource._Implementations.createImage = value;
+            }
+        },
 
-        image.onerror = function(e) {
-            deferred.reject(e);
-        };
-
-        if (crossOrigin) {
-            image.crossOrigin = '';
+        defaultCreateImage : {
+            get : function() {
+                return Resource._DefaultImplementations.createImage;
+            }
         }
-
-        image.src = url;
-    };
-
-    loadImage.defaultCreateImage = loadImage.createImage;
+    });
 
     return loadImage;
 });

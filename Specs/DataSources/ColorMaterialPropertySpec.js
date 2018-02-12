@@ -1,4 +1,3 @@
-/*global defineSuite*/
 defineSuite([
         'DataSources/ColorMaterialProperty',
         'Core/Color',
@@ -13,8 +12,7 @@ defineSuite([
         TimeInterval,
         ConstantProperty,
         TimeIntervalCollectionProperty) {
-    "use strict";
-    /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn*/
+    'use strict';
 
     it('constructor provides the expected defaults', function() {
         var property = new ColorMaterialProperty();
@@ -24,10 +22,6 @@ defineSuite([
 
         var result = property.getValue();
         expect(result.color).toEqual(Color.WHITE);
-
-        property = ColorMaterialProperty.fromColor(Color.BLUE);
-        expect(property.color).toBeInstanceOf(ConstantProperty);
-        expect(property.color.getValue()).toEqual(Color.BLUE);
 
         var colorProperty = new ConstantProperty(Color.BLUE);
         property = new ColorMaterialProperty(colorProperty);

@@ -1,25 +1,18 @@
-/*global define*/
 define([
         '../Core/Color',
         '../Core/defined',
         '../Core/defineProperties',
-        '../Core/deprecationWarning',
-        '../Core/DeveloperError',
         '../Core/Event',
-        './ConstantProperty',
         './createPropertyDescriptor',
         './Property'
     ], function(
         Color,
         defined,
         defineProperties,
-        deprecationWarning,
-        DeveloperError,
         Event,
-        ConstantProperty,
         createPropertyDescriptor,
         Property) {
-    "use strict";
+    'use strict';
 
     /**
      * A {@link MaterialProperty} that maps to PolylineArrow {@link Material} uniforms.
@@ -29,12 +22,12 @@ define([
      * @alias PolylineArrowMaterialProperty
      * @constructor
      */
-    var PolylineArrowMaterialProperty = function(color) {
+    function PolylineArrowMaterialProperty(color) {
         this._definitionChanged = new Event();
         this._color = undefined;
         this._colorSubscription = undefined;
         this.color = color;
-    };
+    }
 
     defineProperties(PolylineArrowMaterialProperty.prototype, {
         /**
