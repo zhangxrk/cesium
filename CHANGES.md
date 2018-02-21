@@ -1,6 +1,9 @@
 Change Log
 ==========
 
+### 1.4.4 - 2018-04-02
+* Improvements to request scheduling and prioritization.
+
 ### 1.43 - 2018-03-01
 
 ##### Deprecated :hourglass_flowing_sand:
