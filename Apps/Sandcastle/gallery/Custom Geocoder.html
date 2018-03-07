@@ -38,10 +38,10 @@ function startup(Cesium) {
 //Sandcastle_Begin
 /**
  * This class is an example of a custom geocoder. It provides geocoding through the OpenStreetMap Nominatim service.
- * @alias OpenStreetMapNominatimGeocoder
+ * @alias PeliasGeocoder
  * @constructor
  */
-function OpenStreetMapNominatimGeocoder() {
+function PeliasGeocoder() {
 }
 
 /**
@@ -50,36 +50,35 @@ function OpenStreetMapNominatimGeocoder() {
  * @param {String} input The query to be sent to the geocoder service
  * @returns {Promise<GeocoderResult[]>}
  */
-OpenStreetMapNominatimGeocoder.prototype.geocode = function (input) {
-    var endpoint = 'https://nominatim.openstreetmap.org/search';
+ PeliasGeocoder.prototype.geocode = function (input) {
+    var endpoint = 'http://localhost:4000/v1/search';
     var resource = new Cesium.Resource({
         url: endpoint,
         queryParameters: {
-            format: 'json',
-            q: input
+            text: input
         }
-    });
+        });
 
     return resource.fetchJson()
-        .then(function (results) {
-            var bboxDegrees;
-            return results.map(function (resultObject) {
-                bboxDegrees = resultObject.boundingbox;
+        .then(function(results) {
+            return results.features.map(function(resultObject) {
+                var bboxDegrees = resultObject.bbox;
+                if (!Cesium.defined(bboxDegrees)) {
+                    bboxDegrees = [resultObject.geometry.coordinates[0] - 0.0001,
+                    resultObject.geometry.coordinates[1] - 0.0001,
+                    resultObject.geometry.coordinates[0] + 0.0001,
+                    resultObject.geometry.coordinates[1] + 0.0001];
+                }
                 return {
-                    displayName: resultObject.display_name,
-                    destination: Cesium.Rectangle.fromDegrees(
-                        bboxDegrees[2],
-                        bboxDegrees[0],
-                        bboxDegrees[3],
-                        bboxDegrees[1]
-                    )
+                    displayName: resultObject.properties.label,
+                    destination: Cesium.Rectangle.fromDegrees(bboxDegrees[0], bboxDegrees[1], bboxDegrees[2], bboxDegrees[3])
                 };
             });
         });
 };
 
 var viewer = new Cesium.Viewer('cesiumContainer', {
-    geocoder: new OpenStreetMapNominatimGeocoder()
+    geocoder: new PeliasGeocoder()
 });
 
 //Sandcastle_End
