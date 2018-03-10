@@ -32,8 +32,7 @@ defineSuite([
         expect(Resource.call).toHaveBeenCalledWith(resource, {
             url: endpoint.url,
             retryCallback: resource.retryCallback,
-            retryAttempts: 1,
-            queryParameters: { access_token: endpoint.accessToken }
+            retryAttempts: 1
         });
     });
 
@@ -45,7 +44,7 @@ defineSuite([
         expect(cloned._ionRoot).toBe(resource);
         cloned._ionRoot = undefined;
         expect(cloned.retryCallback).toBe(resource.retryCallback);
-        expect(cloned.queryParameters.access_token).toBe(resource.queryParameters.access_token);
+        expect(cloned.headers.Authorization).toBe(resource.headers.Authorization);
         expect(cloned).toEqual(resource);
     });
 
@@ -53,7 +52,6 @@ defineSuite([
         var endpointResource = IonResource._createEndpointResource(assetId);
         var resource = new IonResource(endpoint, endpointResource);
         expect(resource.getUrlComponent()).toEqual(endpoint.url);
-        expect(resource.queryParameters).toEqual({ access_token: 'not_really_a_refresh_token' });
         expect(resource._ionEndpoint).toBe(endpoint);
         expect(resource._ionEndpointResource).toEqual(endpointResource);
         expect(resource.retryCallback).toBeDefined();
@@ -91,7 +89,7 @@ defineSuite([
         return IonResource.fromAssetId(123890213)
             .then(function(resource) {
                 expect(resource.url).toEqual(externalEndpoint.options.url);
-                expect(resource.queryParameters.access_token).toBeUndefined();
+                expect(resource.headers.Authorization).toBeUndefined();
                 expect(resource.retryCallback).toBeUndefined();
             });
     }
@@ -200,8 +198,8 @@ defineSuite([
 
             var promise = retryCallback(resource, event);
             var resultPromise = promise.then(function(result) {
-                expect(resource.queryParameters.access_token).toEqual(newEndpoint.accessToken);
                 expect(result).toBe(true);
+                expect(resource._ionEndpoint).toBe(newEndpoint);
             });
 
             expect(endpointResource.fetchJson).toHaveBeenCalledWith();
@@ -231,7 +229,7 @@ defineSuite([
             return testCallback(derived, error)
             .then(function(){
                 expect(derived._ionEndpoint).toBe(resource._ionEndpoint);
-                expect(derived.queryParameters.access_token).toEqual(resource.queryParameters.access_token);
+                expect(derived.headers.Authorization).toEqual(resource.headers.Authorization);
             });
         });
     });
