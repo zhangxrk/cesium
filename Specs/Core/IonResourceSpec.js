@@ -155,6 +155,95 @@ defineSuite([
         Ion.defaultAccessToken = defaultAccessToken;
     });
 
+    it('Calls base _makeRequest with expected options when resource no Accept header is already defined', function() {
+        var originalOptions = {};
+        var expectedOptions = {
+            headers: {
+                Accept: '*/*;access_token=' + endpoint.accessToken
+            }
+        };
+
+        var _makeRequest = spyOn(Resource.prototype, '_makeRequest');
+        var endpointResource = IonResource._createEndpointResource(assetId);
+        var resource = new IonResource(endpoint, endpointResource);
+        resource._makeRequest(originalOptions);
+        expect(_makeRequest).toHaveBeenCalledWith(expectedOptions);
+    });
+
+    it('Calls base _makeRequest with expected options when resource Accept header is already defined', function() {
+        var originalOptions = {};
+        var expectedOptions = {
+            headers: {
+                Accept: 'application/json,*/*;access_token=' + endpoint.accessToken
+            }
+        };
+
+        var _makeRequest = spyOn(Resource.prototype, '_makeRequest');
+        var endpointResource = IonResource._createEndpointResource(assetId);
+        var resource = new IonResource(endpoint, endpointResource);
+        resource.headers.Accept = 'application/json';
+        resource._makeRequest(originalOptions);
+        expect(_makeRequest).toHaveBeenCalledWith(expectedOptions);
+    });
+
+    it('Calls base _makeRequest with expected options when options header.Accept is already defined', function() {
+        var originalOptions = {
+            headers: {
+                Accept: 'application/json'
+            }
+        };
+        var expectedOptions = {
+            headers: {
+                Accept: 'application/json,*/*;access_token=' + endpoint.accessToken
+            }
+        };
+
+        var _makeRequest = spyOn(Resource.prototype, '_makeRequest');
+        var endpointResource = IonResource._createEndpointResource(assetId);
+        var resource = new IonResource(endpoint, endpointResource);
+        resource._makeRequest(originalOptions);
+        expect(_makeRequest).toHaveBeenCalledWith(expectedOptions);
+    });
+
+    it('Calls base _makeRequest with no changes for external assets', function() {
+        var externalEndpoint = {
+            type: '3DTILES',
+            externalType: '3DTILES',
+            options: { url: 'https://test.invalid/tileset.json' },
+            attributions: []
+        };
+        var options = {};
+
+        var _makeRequest = spyOn(Resource.prototype, '_makeRequest');
+        var endpointResource = IonResource._createEndpointResource(assetId);
+        var resource = new IonResource(externalEndpoint, endpointResource);
+        resource._makeRequest(options);
+        expect(_makeRequest.calls.argsFor(0)[0]).toBe(options);
+    });
+
+    it('Calls base fetchImage with preferBlob for ion assets', function() {
+        var fetchImage = spyOn(Resource.prototype, 'fetchImage');
+        var endpointResource = IonResource._createEndpointResource(assetId);
+        var resource = new IonResource(endpoint, endpointResource);
+        resource.fetchImage(false, true);
+        expect(fetchImage).toHaveBeenCalledWith(true, true);
+    });
+
+    it('Calls base fetchImage with no changes for external assets', function() {
+        var externalEndpoint = {
+            type: '3DTILES',
+            externalType: '3DTILES',
+            options: { url: 'https://test.invalid/tileset.json' },
+            attributions: []
+        };
+
+        var fetchImage = spyOn(Resource.prototype, 'fetchImage');
+        var endpointResource = IonResource._createEndpointResource(assetId);
+        var resource = new IonResource(externalEndpoint, endpointResource);
+        resource.fetchImage(false, true);
+        expect(fetchImage).toHaveBeenCalledWith(false, true);
+    });
+
     describe('retryCallback', function() {
         var endpointResource;
         var resource;

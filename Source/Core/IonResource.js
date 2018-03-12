@@ -165,25 +165,25 @@ define([
         return Resource.prototype.fetchImage.call(this, this._isExternal ? preferBlob : true, allowCrossOrigin);
     };
 
-    IonResource.prototype._makeRequest = function(options){
+    IonResource.prototype._makeRequest = function(options) {
         if (this._isExternal) {
             return Resource.prototype._makeRequest.call(this, options);
         }
 
-        var bearer = '*/*; Bearer ' + this._ionEndpoint.accessToken;
-        var existingAccept = bearer;
+        var acceptToken = '*/*;access_token=' + this._ionEndpoint.accessToken;
+        var existingAccept = acceptToken;
 
         var oldHeaders = this.headers;
         if (defined(oldHeaders) && defined(oldHeaders.Accept)) {
-            existingAccept = oldHeaders.Accept + ',' + bearer;
+            existingAccept = oldHeaders.Accept + ',' + acceptToken;
         }
 
         if (!defined(options.headers)) {
             options.headers = { Accept: existingAccept };
-        } else if (!defined(options.Accept)) {
+        } else if (!defined(options.headers.Accept)) {
             options.headers.Accept = existingAccept;
         } else {
-            options.headers.Accept = options.headers.Accept + ',' + bearer;
+            options.headers.Accept = options.headers.Accept + ',' + acceptToken;
         }
 
         return Resource.prototype._makeRequest.call(this, options);
