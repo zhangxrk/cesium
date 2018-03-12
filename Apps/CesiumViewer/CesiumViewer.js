@@ -62,15 +62,15 @@ define([
             requestRenderMode : true
         });
 
-        if (hasBaseLayerPicker) {
-            var viewModel = viewer.baseLayerPicker.viewModel;
-            viewModel.selectedTerrain = viewModel.terrainProviderViewModels[1];
-        } else {
-            viewer.terrainProvider = createWorldTerrain({
-                requestWaterMask: true,
-                requestVertexNormals: true
-            });
-        }
+        // if (hasBaseLayerPicker) {
+        //     var viewModel = viewer.baseLayerPicker.viewModel;
+        //     viewModel.selectedTerrain = viewModel.terrainProviderViewModels[1];
+        // } else {
+        //     viewer.terrainProvider = createWorldTerrain({
+        //         requestWaterMask: true,
+        //         requestVertexNormals: true
+        //     });
+        // }
     } catch (exception) {
         loadingIndicator.style.display = 'none';
         var message = formatError(exception);

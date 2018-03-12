@@ -118,11 +118,7 @@ define([
         this._culture = defaultValue(options.culture, '');
         this._tileDiscardPolicy = options.tileDiscardPolicy;
         this._proxy = options.proxy;
-        this._credit = new Credit({
-            text: 'Bing Imagery',
-            imageUrl: BingMapsImageryProvider._logoData,
-            link: 'http://www.bing.com'
-        });
+        this._credit = new Credit('<a href="http://www.bing.com" target="_blank"><img src="' + BingMapsImageryProvider._logoData + '" title="Bing Imagery"/></a>');
 
         /**
          * The default {@link ImageryLayer#gamma} to use for imagery layers created for this provider.
@@ -200,9 +196,7 @@ define([
             for (var attributionIndex = 0, attributionLength = attributionList.length; attributionIndex < attributionLength; ++attributionIndex) {
                 var attribution = attributionList[attributionIndex];
 
-                attribution.credit = new Credit({
-                    text: attribution.attribution
-                });
+                attribution.credit = new Credit(attribution.attribution);
 
                 var coverageAreas = attribution.coverageAreas;
 

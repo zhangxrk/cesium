@@ -131,7 +131,7 @@ define([
 
         var credit = options.credit;
         if (typeof credit === 'string') {
-            credit = new Credit({text: credit});
+            credit = new Credit(credit);
         }
         this._credit = credit;
 
@@ -167,8 +167,8 @@ define([
                     var deprecationLinkText = 'Check out the new high-resolution Cesium World Terrain';
                     var deprecationLink = 'https://cesium.com/blog/2018/03/01/introducing-cesium-world-terrain/';
                     that._tileCredits = [
-                        new Credit({ text: deprecationText, showOnScreen: true }),
-                        new Credit({ text: deprecationLinkText, link: deprecationLink, showOnScreen: true })
+                        new Credit(deprecationText, true),
+                        new Credit('<a href="' + deprecationLink + '" target="_blank">' + deprecationLinkText + '</a>', true)
                     ];
                     deprecationWarning('assets.agi.com', deprecationText + ' ' + deprecationLinkText + ' ' + deprecationLink);
                 } else {
@@ -327,7 +327,7 @@ define([
                         }
                     }
 
-                    var layerJsonCredit = new Credit({ text: attribution });
+                    var layerJsonCredit = new Credit(attribution);
 
                     if (defined(that._tileCredits)) {
                         that._tileCredits.push(layerJsonCredit);
